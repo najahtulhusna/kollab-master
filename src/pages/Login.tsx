@@ -122,7 +122,7 @@ function Login() {
         style={{
           display: "flex",
           justifyContent: "space-around",
-          marginTop: "12px",
+          marginTop: "24px",
         }}
       >
         <Image
