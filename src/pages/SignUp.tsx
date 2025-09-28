@@ -14,12 +14,14 @@ import { Button } from "../components/Button";
 import TextField from "../components/TextField";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { auth, db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { notifications } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
-import { sendPasswordResetEmail } from "firebase/auth";
 import {
   PersonOutlined,
   LockOutlined,
@@ -27,25 +29,22 @@ import {
   VisibilityOffOutlined,
 } from "@mui/icons-material";
 
-function Login() {
+function SignUp() {
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [value, setValue] = useState<string | null>("1");
+  const [value, setValue] = useState("1");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [jobPosition, setJobPosition] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [forgotModalOpened, setForgotModalOpened] = useState(false);
-  const [rootRef, setRootRef] = useState<HTMLDivElement | null>(null);
-  const [controlsRefs, setControlsRefs] = useState<
-    Record<string, HTMLButtonElement | null>
-  >({});
-  const setControlRef = (val: string) => (node: HTMLButtonElement) => {
-    controlsRefs[val] = node;
-    setControlsRefs(controlsRefs);
-  };
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
@@ -55,7 +54,7 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = async () => {
+  const handleSignUp = async () => {
     if (!validate()) return;
     setLoading(true);
 
@@ -68,7 +67,7 @@ function Login() {
 
       if (snapshot.empty) {
         notifications.show({
-          title: "Login Failed",
+          title: "Sign Up Failed",
           message: "Username not found.",
           color: "red",
         });
@@ -88,7 +87,7 @@ function Login() {
       );
 
       notifications.show({
-        title: "Login Successful",
+        title: "Sign Up Successful",
         message: `Welcome back, ${userDoc.firstName || "User"}!`,
         color: "green",
       });
@@ -99,13 +98,13 @@ function Login() {
         navigate("/dashboard"); // Normal user dashboard
       }
     } catch (error: any) {
-      let message = "Login failed.";
+      let message = "Sign Up failed.";
       if (error.code === "auth/wrong-password") {
         message = "Incorrect password.";
       }
 
       notifications.show({
-        title: "Login Error",
+        title: "Sign Up Error",
         message,
         color: "red",
       });
@@ -116,59 +115,96 @@ function Login() {
 
   // Inline components for each tab
 
-  const BusinessLogin = () => (
+  const BusinessSignUp = () => (
     <Stack gap="md">
       <TextField
-        label="Business Username"
+        label="Email"
+        withAsterisk
+        placeholder="youremail@mail.com"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        error={errors.email}
+      />
+
+      <TextField
+        label="Username"
         withAsterisk
         placeholder="Username"
-        leftSection={<PersonOutlined fontSize="small" />}
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         error={errors.username}
       />
 
-      <Box>
-        <TextField
-          placeholder="Password"
-          type={showPassword ? "text" : "password"}
-          leftSection={<LockOutlined style={{ fontSize: 18 }} />}
-          rightSection={
-            showPassword ? (
-              <VisibilityOutlined
-                style={{ fontSize: 18, cursor: "pointer" }}
-                onClick={() => setShowPassword(false)}
-              />
-            ) : (
-              <VisibilityOffOutlined
-                style={{ fontSize: 18, cursor: "pointer" }}
-                onClick={() => setShowPassword(true)}
-              />
-            )
-          }
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
-        />
-        <Text
-          size="xs"
-          fw={600}
-          c="dark"
-          style={{
-            cursor: "pointer",
-            marginTop: 4,
-            display: "block",
-            textAlign: "right",
-          }}
-          onClick={() => setForgotModalOpened(true)}
-        >
-          Forgot password?
-        </Text>
-      </Box>
+      <TextField
+        label="Password"
+        withAsterisk
+        placeholder="Password"
+        type={showPassword ? "text" : "password"}
+        leftSection={<LockOutlined style={{ fontSize: 18 }} />}
+        rightSection={
+          showPassword ? (
+            <VisibilityOutlined
+              style={{ fontSize: 18, cursor: "pointer" }}
+              onClick={() => setShowPassword(false)}
+            />
+          ) : (
+            <VisibilityOffOutlined
+              style={{ fontSize: 18, cursor: "pointer" }}
+              onClick={() => setShowPassword(true)}
+            />
+          )
+        }
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        error={errors.password}
+      />
+
+      <TextField
+        label="Repeat Password"
+        withAsterisk
+        placeholder="Repeat Password"
+        type={showRepeatPassword ? "text" : "password"}
+        leftSection={<LockOutlined style={{ fontSize: 18 }} />}
+        rightSection={
+          showRepeatPassword ? (
+            <VisibilityOutlined
+              style={{ fontSize: 18, cursor: "pointer" }}
+              onClick={() => setShowRepeatPassword(false)}
+            />
+          ) : (
+            <VisibilityOffOutlined
+              style={{ fontSize: 18, cursor: "pointer" }}
+              onClick={() => setShowRepeatPassword(true)}
+            />
+          )
+        }
+        value={repeatPassword}
+        onChange={(e) => setRepeatPassword(e.target.value)}
+        error={errors.repeatPassword}
+      />
+
+      <TextField
+        label="Company Name"
+        withAsterisk
+        placeholder="Company Name"
+        value={companyName}
+        onChange={(e) => setCompanyName(e.target.value)}
+        error={errors.companyName}
+      />
+
+      <TextField
+        label="Job Position"
+        withAsterisk
+        placeholder="Job Position"
+        value={jobPosition}
+        onChange={(e) => setJobPosition(e.target.value)}
+        error={errors.jobPosition}
+      />
     </Stack>
   );
 
-  const InfluencerLogin = () => (
+  const InfluencerSignUp = () => (
     <Stack gap="md">
       <TextField
         label="Influencer Username"
@@ -236,11 +272,11 @@ function Login() {
         <Image src="src/assets/logo-v1.svg" alt="Company Logo" w={40} h={40} />
 
         <Tabs variant="none" value={value} onChange={setValue}>
-          <Tabs.List ref={setRootRef} className="tabList">
-            <Tabs.Tab value="1" ref={setControlRef("1")} className="tabClass">
+          <Tabs.List className="tabList">
+            <Tabs.Tab value="1" className="tabClass">
               Business
             </Tabs.Tab>
-            <Tabs.Tab value="2" ref={setControlRef("2")} className="tabClass">
+            <Tabs.Tab value="2" className="tabClass">
               Influencer
             </Tabs.Tab>
           </Tabs.List>
@@ -268,20 +304,20 @@ function Login() {
               ta="center"
               style={{ fontSize: isMobile ? 28 : 24 }}
             >
-              Welcome back to Kollab
+              Create An Account
             </Title>
             <Text size="sm" ta="center" c="#1f1f1f" mb="lg">
-              Please sign in to continue managing your influencer campaigns and
-              performance.
+              Join as an Influencer or Business to start your journey with
+              Kollab.
             </Text>
 
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleLogin();
+                handleSignUp();
               }}
             >
-              {value === "1" ? <BusinessLogin /> : <InfluencerLogin />}
+              {value === "1" ? <BusinessSignUp /> : <InfluencerSignUp />}
 
               <Modal
                 opened={forgotModalOpened}
@@ -357,16 +393,16 @@ function Login() {
                 }}
               >
                 <Button size={isMobile ? "lg" : "md"} type="submit" fullWidth>
-                  Login
+                  Sign Up
                 </Button>
 
                 <Button
                   size={isMobile ? "lg" : "md"}
                   variantType="secondary"
                   fullWidth
-                  onClick={() => navigate("/signup")}
+                  onClick={() => navigate("/login")}
                 >
-                  Don’t have an account? Sign Up
+                  Already have an account? Login
                 </Button>
               </Group>
             </form>
@@ -377,4 +413,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default SignUp;

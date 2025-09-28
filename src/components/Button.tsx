@@ -19,6 +19,12 @@ export const Button = ({
     &:hover {
       background-color: #6b6b6b;
     }
+
+    &:disabled {
+      background-color: #d1d1d1;
+      color: #7a7a7a;
+      cursor: not-allowed;
+    }
   `;
 
   const secondary = css`
@@ -29,6 +35,11 @@ export const Button = ({
     &:hover {
       background-color: #f2f2f2;
       color: #131313;
+    }
+
+    &:disabled {
+      color: #b0b0b0;
+      cursor: not-allowed;
     }
   `;
 
