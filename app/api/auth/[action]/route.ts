@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 
 // ─── Actions ────────────────────────────────
@@ -13,21 +13,16 @@ async function getTest() {
   return NextResponse.json(data);
 }
 
-// Add more actions here if needed, e.g.
-// async function createUser(body: any) { ... }
-// async function login(body: any) { ... }
-
 // ─── Router Dispatcher ──────────────────────
-export async function GET(
-  req: Request,
-  { params }: { params: { action: string } }
-) {
+export async function GET(req: NextRequest, context: any) {
+  // ⚠️ simplest and safest for now
+  const action = context.params?.action;
+
   const actions: Record<string, () => Promise<NextResponse>> = {
     test: getTest,
-    // "users": getUsers,
   };
 
-  const fn = actions[params.action];
+  const fn = actions[action];
   if (!fn) {
     return NextResponse.json({ error: "Invalid GET action" }, { status: 404 });
   }
