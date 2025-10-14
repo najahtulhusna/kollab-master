@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 import test from "node:test";
 
@@ -23,17 +23,17 @@ async function testApi() {
 // async function login(body: any) { ... }
 
 // ─── Router Dispatcher ──────────────────────
-export async function GET(
-  req: Request,
-  { params }: { params: { action: string } }
-) {
+export async function GET(req: NextRequest, context: any) {
+  // ⚠️ simplest and safest for now
+  const action = context.params?.action;
+
   const actions: Record<string, () => Promise<NextResponse>> = {
     getTest: getTest,
     testApi: testApi,
     // "users": getUsers,
   };
 
-  const fn = actions[params.action];
+  const fn = actions[action];
   if (!fn) {
     return NextResponse.json({ error: "Invalid GET action" }, { status: 404 });
   }
