@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import test from "node:test";
 
 // ─── Actions ────────────────────────────────
 async function getTest() {
@@ -13,13 +14,23 @@ async function getTest() {
   return NextResponse.json(data);
 }
 
+async function testApi() {
+  return NextResponse.json("testApi");
+}
+
+// Add more actions here if needed, e.g.
+// async function createUser(body: any) { ... }
+// async function login(body: any) { ... }
+
 // ─── Router Dispatcher ──────────────────────
 export async function GET(req: NextRequest, context: any) {
   // ⚠️ simplest and safest for now
   const action = context.params?.action;
 
   const actions: Record<string, () => Promise<NextResponse>> = {
-    test: getTest,
+    getTest: getTest,
+    testApi: testApi,
+    // "users": getUsers,
   };
 
   const fn = actions[action];
