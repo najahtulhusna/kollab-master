@@ -2,43 +2,58 @@ import NextAuth, {
   type NextAuthOptions,
   type SessionStrategy,
 } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
+import InstagramProvider from "next-auth/providers/instagram";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { promises as fs } from "fs";
-import path from "path";
-
-const USERS_FILE = path.join(process.cwd(), "data", "users.json");
-
-type User = { email: string; password: string };
+import { CustomPostgresAdapter } from "@/lib/customPostgresAdapter";
 
 export const authOptions: NextAuthOptions = {
+  adapter: CustomPostgresAdapter(),
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+    }),
+    InstagramProvider({
+      clientId: process.env.INSTAGRAM_CLIENT_ID!,
+      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET!,
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: {
-          label: "Email",
-          type: "email",
-          placeholder: "jsmith@example.com",
-        },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials: Record<string, string> | undefined) {
-        if (!credentials?.email || !credentials?.password) return null;
-        let users: User[] = [];
-        try {
-          const data = await fs.readFile(USERS_FILE, "utf-8");
-          users = JSON.parse(data);
-        } catch (e) {
-          users = [];
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
         }
-        const user = users.find(
-          (u: User) =>
-            u.email === credentials.email && u.password === credentials.password
+
+        // Lookup user in database
+        const { data: user } = await require("@/lib/supabase")
+          .supabaseServer()
+          .from("users")
+          .select("*")
+          .eq("email", credentials.email)
+          .single();
+
+        if (!user || !user.password) return null;
+
+        // Compare password
+        const bcrypt = require("bcryptjs");
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password
         );
-        if (user) {
-          return { id: user.email, email: user.email };
-        }
-        return null;
+        if (!isValid) return null;
+
+        // Return user object for session
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
   ],

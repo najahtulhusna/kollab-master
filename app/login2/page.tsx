@@ -58,6 +58,30 @@ export default function LoginPage() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
+
+        <div className="flex flex-col gap-2 mt-4">
+          <button
+            type="button"
+            className="bg-red-500 text-white py-2 rounded hover:bg-red-600"
+            onClick={() => signIn("google")}
+          >
+            Sign in with Google
+          </button>
+          <button
+            type="button"
+            className="bg-blue-800 text-white py-2 rounded hover:bg-blue-900"
+            onClick={() => signIn("facebook")}
+          >
+            Sign in with Facebook
+          </button>
+          <button
+            type="button"
+            className="bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white py-2 rounded hover:opacity-90"
+            onClick={() => signIn("instagram")}
+          >
+            Sign in with Instagram
+          </button>
+        </div>
         {message && (
           <div className="text-center text-sm mt-2 text-red-600">{message}</div>
         )}
