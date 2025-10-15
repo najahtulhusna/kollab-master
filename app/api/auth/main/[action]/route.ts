@@ -22,43 +22,62 @@ import bcrypt from "bcryptjs";
 
 // Register action
 async function register(body: any) {
-  const { name, email, password } = body;
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  try {
+    const { name, email, password } = body;
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+    const supabase = supabaseServer();
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single();
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "User already exists" },
+        { status: 409 }
+      );
+    }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Create user
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert([{ email, name }])
+      .select()
+      .single();
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: userError?.message || "User creation failed" },
+        { status: 500 }
+      );
+    }
+    // Create account record for local provider
+    const { error: accountError } = await supabase.from("accounts").insert([
+      {
+        user_id: user.id,
+        provider: "local",
+        provider_account_id: user.id,
+        password_hash: hashedPassword,
+      },
+    ]);
+    if (accountError) {
+      return NextResponse.json(
+        { error: accountError.message },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({
+      user: { id: user.id, email: user.email, name: user.name },
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Unexpected error" },
+      { status: 500 }
+    );
   }
-  const supabase = supabaseServer();
-  // Check if user already exists
-  const { data: existingUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .single();
-  if (existingUser) {
-    return NextResponse.json({ error: "User already exists" }, { status: 409 });
-  }
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
-  // Create user
-  const { data: user, error } = await supabase
-    .from("users")
-    .insert([{ email, name, password: hashedPassword }])
-    .select()
-    .single();
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  // Create account record for credentials provider
-  await supabase.from("accounts").insert([
-    {
-      user_id: user.id,
-      provider: "credentials",
-      provider_account_id: user.id,
-      type: "credentials",
-    },
-  ]);
-  return NextResponse.json({
-    user: { id: user.id, email: user.email, name: user.name },
-  });
 }
 
 // ─── Router Dispatcher ──────────────────────

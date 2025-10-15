@@ -4,11 +4,10 @@ import {
   AdapterUser,
   AdapterAccount,
   AdapterSession,
-  AdapterSessionWithUser,
   VerificationToken,
 } from "next-auth/adapters";
 
-export function CustomPostgresAdapter(): Adapter {
+export function AuthUtils(): Adapter {
   const adapter: Adapter = {
     async createUser(user: Omit<AdapterUser, "id">) {
       const { data, error } = await supabaseServer()
@@ -57,7 +56,7 @@ export function CustomPostgresAdapter(): Adapter {
         .eq("provider_account_id", providerAccountId)
         .single();
       if (error || !data) return null;
-      return await this.getUser!(data.user_id);
+      return await adapter.getUser!(data.user_id);
     },
     async updateUser(user: Partial<AdapterUser> & { id: string }) {
       const { data, error } = await supabaseServer()
@@ -77,16 +76,30 @@ export function CustomPostgresAdapter(): Adapter {
       await supabaseServer().from("users").delete().eq("id", id);
     },
     async linkAccount(account: AdapterAccount) {
-      await supabaseServer().from("accounts").insert({
-        user_id: account.userId,
-        provider: account.provider,
-        provider_account_id: account.providerAccountId,
-        access_token: account.access_token,
-        refresh_token: account.refresh_token,
-        expires_at: account.expires_at,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+      // Log for debugging social account creation
+      console.log("[NextAuth] linkAccount called", account);
+      const { data, error } = await supabaseServer()
+        .from("accounts")
+        .insert({
+          user_id: account.userId,
+          provider: account.provider,
+          provider_account_id: account.providerAccountId,
+          access_token: account.access_token,
+          refresh_token: account.refresh_token,
+          expires_at: account.expires_at,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select();
+      if (error) {
+        console.error(
+          "[NextAuth] linkAccount error:",
+          error.message,
+          error.details || ""
+        );
+      } else {
+        console.log("[NextAuth] linkAccount success:", data);
+      }
     },
     async unlinkAccount({
       provider,

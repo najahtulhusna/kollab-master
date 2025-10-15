@@ -6,10 +6,10 @@ import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import InstagramProvider from "next-auth/providers/instagram";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { CustomPostgresAdapter } from "@/lib/customPostgresAdapter";
+import { AuthUtils } from "@/lib/authUtils";
 
 export const authOptions: NextAuthOptions = {
-  adapter: CustomPostgresAdapter(),
+  adapter: AuthUtils(),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,

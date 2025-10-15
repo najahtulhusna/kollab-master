@@ -8,7 +8,7 @@ CREATE TABLE accounts (
   password_hash TEXT,                  -- only used for local accounts
   access_token TEXT,                   -- from OAuth provider
   refresh_token TEXT,
-  expires_at TIMESTAMPTZ,              -- timezone-aware timestamp
+  expires_at BIGINT,                   -- epoch time (seconds or ms)
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (provider, provider_account_id)
