@@ -25,7 +25,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-purple-100">
+    <div className="flex flex-col items-center justify-center h-full">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
         <h2 className="text-3xl font-bold text-center mb-6 text-blue-700">
           Sign in to Your Account

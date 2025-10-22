@@ -54,23 +54,8 @@ export default function SignUpPage() {
   // Selection Screen
   if (step === "selection") {
     return (
-      <div className="min-h-screen bg-white">
-        <header className="flex items-center justify-between px-8 py-6">
-          <div className="text-3xl font-bold">K</div>
-          <div className="flex gap-4">
-            <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-              Login
-            </button>
-            <button className="px-4 py-2 text-sm font-medium text-white bg-black rounded hover:bg-gray-800">
-              Sign Up
-            </button>
-          </div>
-        </header>
-
-        <main
-          className="flex flex-col items-center justify-center px-4"
-          style={{ minHeight: "calc(100vh - 88px)" }}
-        >
+      <div className="h-3/4 bg-white flex justify-center">
+        <main className="flex flex-col items-center justify-center px-4">
           <div className="w-full max-w-2xl">
             <h1 className="text-3xl font-bold text-center mb-2">
               Let's get you started!
@@ -106,19 +91,7 @@ export default function SignUpPage() {
   // Form Screen
   if (step === "form") {
     return (
-      <div className="min-h-screen bg-white">
-        <header className="flex items-center justify-between px-8 py-6">
-          <div className="text-3xl font-bold">K</div>
-          <div className="flex gap-4">
-            <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-              Login
-            </button>
-            <button className="px-4 py-2 text-sm font-medium text-white bg-black rounded hover:bg-gray-800">
-              Sign Up
-            </button>
-          </div>
-        </header>
-
+      <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
             {/* Progress Indicator */}
@@ -282,7 +255,7 @@ export default function SignUpPage() {
 
   // Loading Screen
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-full bg-white">
       <header className="flex items-center justify-between px-8 py-6">
         <div className="text-3xl font-bold">K</div>
         <div className="flex gap-4">

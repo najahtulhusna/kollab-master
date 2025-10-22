@@ -1,28 +1,27 @@
 import { supabaseServer } from "../lib/supabase";
-import {
-  Adapter,
-  AdapterUser,
-  AdapterAccount,
-  AdapterSession,
-  VerificationToken,
-} from "next-auth/adapters";
+import { Adapter, VerificationToken } from "next-auth/adapters";
+import { AuthUser, AuthAccount, AuthSession } from "../types/AuthTypes";
 
 export function AuthUtils(): Adapter {
   const adapter: Adapter = {
-    async createUser(user: Omit<AdapterUser, "id">) {
+    async createUser(user: Omit<AuthUser, "id">) {
       const { data, error } = await supabaseServer()
         .from("users")
         .insert({
           email: user.email,
           name: user.name,
-          avatar_url: user.image,
+          avatar_url: user.image ?? undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .select()
         .single();
       if (error) throw error;
-      return { ...data, emailVerified: null } as AdapterUser;
+      return {
+        ...data,
+        emailVerified: null,
+        image: data.avatar_url ?? undefined,
+      } as AuthUser;
     },
     async getUser(id: string) {
       const { data, error } = await supabaseServer()
@@ -31,7 +30,11 @@ export function AuthUtils(): Adapter {
         .eq("id", id)
         .single();
       if (error || !data) return null;
-      return { ...data, emailVerified: null } as AdapterUser;
+      return {
+        ...data,
+        emailVerified: null,
+        image: data.avatar_url ?? undefined,
+      } as AuthUser;
     },
     async getUserByEmail(email: string) {
       const { data, error } = await supabaseServer()
@@ -40,7 +43,11 @@ export function AuthUtils(): Adapter {
         .eq("email", email)
         .single();
       if (error || !data) return null;
-      return { ...data, emailVerified: null } as AdapterUser;
+      return {
+        ...data,
+        emailVerified: null,
+        image: data.avatar_url ?? undefined,
+      } as AuthUser;
     },
     async getUserByAccount({
       provider,
@@ -58,24 +65,28 @@ export function AuthUtils(): Adapter {
       if (error || !data) return null;
       return await adapter.getUser!(data.user_id);
     },
-    async updateUser(user: Partial<AdapterUser> & { id: string }) {
+    async updateUser(user: Partial<AuthUser> & { id: string }) {
       const { data, error } = await supabaseServer()
         .from("users")
         .update({
           name: user.name,
-          avatar_url: user.image,
+          avatar_url: user.image ?? undefined,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
         .select()
         .single();
       if (error) throw error;
-      return { ...data, emailVerified: null } as AdapterUser;
+      return {
+        ...data,
+        emailVerified: null,
+        image: data.avatar_url ?? undefined,
+      } as AuthUser;
     },
     async deleteUser(id: string) {
       await supabaseServer().from("users").delete().eq("id", id);
     },
-    async linkAccount(account: AdapterAccount) {
+    async linkAccount(account: AuthAccount) {
       // Log for debugging social account creation
       console.log("[NextAuth] linkAccount called", account);
       const { data, error } = await supabaseServer()
@@ -134,8 +145,8 @@ export function AuthUtils(): Adapter {
         ...data,
         sessionToken: data.session_token,
         userId: data.user_id,
-        expires: data.expires_at,
-      } as AdapterSession;
+        expires: data.expires_at ? new Date(data.expires_at) : undefined,
+      } as AuthSession;
     },
     async getSessionAndUser(sessionToken: string) {
       const { data, error } = await supabaseServer()
@@ -167,8 +178,8 @@ export function AuthUtils(): Adapter {
         ...data,
         sessionToken: data.session_token,
         userId: data.user_id,
-        expires: data.expires_at,
-      } as AdapterSession;
+        expires: data.expires_at ? new Date(data.expires_at) : undefined,
+      } as AuthSession;
     },
     async deleteSession(sessionToken: string) {
       await supabaseServer()
@@ -176,11 +187,15 @@ export function AuthUtils(): Adapter {
         .delete()
         .eq("session_token", sessionToken);
     },
-    async createVerificationToken(token: VerificationToken) {
+    async createVerificationToken(params: {
+      identifier: string;
+      token: string;
+      expires: Date;
+    }) {
       // Optional: implement if using email verification
       return null;
     },
-    async useVerificationToken(token: VerificationToken) {
+    async useVerificationToken(params: { identifier: string; token: string }) {
       // Optional: implement if using email verification
       return null;
     },
