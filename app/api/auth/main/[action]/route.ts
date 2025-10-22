@@ -23,9 +23,28 @@ import bcrypt from "bcryptjs";
 // Register action
 async function register(body: any) {
   try {
-    const { name, email, password } = body;
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    const {
+      name,
+      email,
+      password,
+      username,
+      avatar_url,
+      firstname,
+      lastname,
+      usertype,
+    } = body;
+    const missingFields = [];
+    if (!email) missingFields.push("email");
+    if (!password) missingFields.push("password");
+    if (!username) missingFields.push("username");
+    if (!firstname) missingFields.push("firstname");
+    if (!lastname) missingFields.push("lastname");
+    if (!usertype) missingFields.push("usertype");
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.join(", ")}` },
+        { status: 400 }
+      );
     }
     const supabase = supabaseServer();
     // Check if user already exists
@@ -33,19 +52,29 @@ async function register(body: any) {
       .from("users")
       .select("id")
       .eq("email", email)
+      .eq("usertype", usertype)
       .single();
     if (existingUser) {
       return NextResponse.json(
-        { error: "User already exists" },
+        { error: `Email already bound to a ${usertype} account` },
         { status: 409 }
       );
     }
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Create user
+    // Create user with all fields
     const { data: user, error: userError } = await supabase
       .from("users")
-      .insert([{ email, name }])
+      .insert([
+        {
+          email,
+          username,
+          avatar_url: avatar_url || null,
+          firstname,
+          lastname,
+          usertype,
+        },
+      ])
       .select()
       .single();
     if (userError || !user) {
@@ -70,7 +99,16 @@ async function register(body: any) {
       );
     }
     return NextResponse.json({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar_url: user.avatar_url,
+        firstname: user.firstname,
+        lastname: user.lastname,
+        usertype: user.usertype,
+        name: user.name,
+      },
     });
   } catch (err: any) {
     return NextResponse.json(

@@ -8,7 +8,8 @@ CREATE TABLE users (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   firstname TEXT,
-  lastname TEXT
+  lastname TEXT,
+  usertype TEXT, -- 'business' or 'influencer'
 );
 
 -- Note: Using TIMESTAMPTZ stores timezone-aware timestamps, which is best for analytics, reporting, and global applications.

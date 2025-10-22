@@ -1,8 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
+import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
 
 export default function SignUpPage() {
+  const [userType, setUserType] = useState<AuthSelectionType | null>(null);
   const [step, setStep] = useState("selection"); // 'selection', 'form', 'loading'
   const [formData, setFormData] = useState({
     firstName: "",
@@ -11,6 +13,7 @@ export default function SignUpPage() {
     username: "",
     password: "",
     repeatPassword: "",
+    // avatar_url: "", // Uncomment and add input if you want avatar support
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,16 +25,25 @@ export default function SignUpPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    // setStep("loading");
     setMessage("");
-    // You may want to validate passwords match here
+    // Validate passwords match
+    if (formData.password !== formData.repeatPassword) {
+      setMessage("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
     const res = await fetch("/api/auth/main/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: formData.firstName + " " + formData.lastName,
         email: formData.email,
         username: formData.username,
         password: formData.password,
+        firstname: formData.firstName,
+        lastname: formData.lastName,
+        usertype: userType,
+        // avatar_url: formData.avatar_url || null, // Uncomment if you add avatar support
       }),
     });
     const data = await res.json();
@@ -44,48 +56,22 @@ export default function SignUpPage() {
         username: "",
         password: "",
         repeatPassword: "",
+        // avatar_url: "", // Uncomment if you add avatar support
       });
     } else {
       setMessage(data.error || "Registration failed.");
+      // setStep("form");
     }
     setLoading(false);
+    // redirect to business profile page after successful registration
+    if (res.ok && data.user) {
+      // window.location.href = "/bussiness/profile";
+    }
   }
 
   // Selection Screen
   if (step === "selection") {
-    return (
-      <div className="h-3/4 bg-white flex justify-center">
-        <main className="flex flex-col items-center justify-center px-4">
-          <div className="w-full max-w-2xl">
-            <h1 className="text-3xl font-bold text-center mb-2">
-              Let's get you started!
-            </h1>
-            <p className="text-center text-gray-600 mb-12">
-              Choose how you'd like to sign up. Are you registering as a
-              Business or as an Influencer?
-            </p>
-
-            <div className="flex flex-wrap justify-center gap-6">
-              <button
-                onClick={() => setStep("form")}
-                className="flex flex-col items-center justify-center w-40 h-40 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md transition-all"
-              >
-                <Briefcase className="w-12 h-12 mb-3" strokeWidth={1.5} />
-                <span className="text-sm font-medium">As Business</span>
-              </button>
-
-              <button
-                onClick={() => setStep("form")}
-                className="flex flex-col items-center justify-center w-40 h-40 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md transition-all"
-              >
-                <Sparkles className="w-12 h-12 mb-3" strokeWidth={1.5} />
-                <span className="text-sm font-medium">As an Influencer</span>
-              </button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
+    return <AuthSelection onSelect={setUserType} onNextStep={setStep} />;
   }
 
   // Form Screen
@@ -255,23 +241,8 @@ export default function SignUpPage() {
 
   // Loading Screen
   return (
-    <div className="h-full bg-white">
-      <header className="flex items-center justify-between px-8 py-6">
-        <div className="text-3xl font-bold">K</div>
-        <div className="flex gap-4">
-          <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-            Login
-          </button>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-black rounded hover:bg-gray-800">
-            Sign Up
-          </button>
-        </div>
-      </header>
-
-      <main
-        className="flex flex-col items-center justify-center px-4"
-        style={{ minHeight: "calc(100vh - 88px)" }}
-      >
+    <div className="h-3/4 bg-white">
+      <main className="h-full flex flex-col items-center justify-center">
         <div className="w-full max-w-md text-center">
           {/* Progress Indicator */}
           <div className="flex items-center justify-center mb-12">

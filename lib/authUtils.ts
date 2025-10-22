@@ -9,10 +9,11 @@ export function AuthUtils(): Adapter {
         .from("users")
         .insert({
           email: user.email,
-          name: user.name,
+          username: user.username,
           avatar_url: user.image ?? undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          usertype: user.usertype,
         })
         .select()
         .single();
