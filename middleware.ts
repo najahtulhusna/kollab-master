@@ -19,10 +19,10 @@ export async function middleware(req: NextRequest) {
   }
   // Check for valid session token
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!token) {
-    const loginUrl = new URL("/login", req.url);
-    return NextResponse.redirect(loginUrl);
-  }
+  // if (!token) {
+  //   const loginUrl = new URL("/login", req.url);
+  //   return NextResponse.redirect(loginUrl);
+  // }
   return NextResponse.next();
 }
 

@@ -2,10 +2,13 @@
 import React, { useState } from "react";
 import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
+import CompanyInformation, {
+  CompanyData,
+} from "@/components/CompanyInformation";
 
 export default function SignUpPage() {
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
-  const [step, setStep] = useState("selection"); // 'selection', 'form', 'loading'
+  const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'loading'
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,11 +18,43 @@ export default function SignUpPage() {
     repeatPassword: "",
     // avatar_url: "", // Uncomment and add input if you want avatar support
   });
+  const [companyData, setCompanyData] = useState<CompanyData>({
+    companyName: "",
+    jobPosition: "",
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const updatedForm = { ...formData, [name]: value };
+    setFormData(updatedForm);
+
+    // Immediate password match validation
+    if (name === "password" || name === "repeatPassword") {
+      if (
+        updatedForm.password &&
+        updatedForm.repeatPassword &&
+        updatedForm.password !== updatedForm.repeatPassword
+      ) {
+        setPasswordError("Passwords do not match.");
+      } else {
+        setPasswordError("");
+      }
+    }
+  };
+
+  const handleCompanyDataChange = (data: CompanyData) => {
+    setCompanyData(data);
+    console.log("Company data updated:", data); // For debugging
+  };
+
+  const handleCompanySubmit = (data: CompanyData) => {
+    console.log("Company form submitted:", data);
+    setStep("loading");
+    // Here you can handle the company data submission
+    // For example, you could combine it with user registration or save it separately
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,6 +93,13 @@ export default function SignUpPage() {
         repeatPassword: "",
         // avatar_url: "", // Uncomment if you add avatar support
       });
+      // Move to company information step if user type is business
+      if (userType === "bussiness") {
+        setStep("company");
+      } else {
+        // For other user types, proceed to loading or complete registration
+        setStep("loading");
+      }
     } else {
       setMessage(data.error || "Registration failed.");
       // setStep("form");
@@ -90,6 +132,14 @@ export default function SignUpPage() {
                 <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
                   2
                 </div>
+                {userType === "bussiness" && (
+                  <>
+                    <div className="w-24 h-0.5 bg-gray-300"></div>
+                    <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
+                      3
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -204,10 +254,17 @@ export default function SignUpPage() {
                     placeholder="Repeat Password"
                     value={formData.repeatPassword}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    className={`w-full pl-10 pr-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                      passwordError ? "border-red-500" : "border-gray-300"
+                    }`}
                     required
                   />
                 </div>
+                {passwordError && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {passwordError}
+                  </div>
+                )}
               </div>
 
               {/* Buttons */}
@@ -228,6 +285,57 @@ export default function SignUpPage() {
                 </button>
               </div>
             </form>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Company Information Screen
+  if (step === "company") {
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            {/* Progress Indicator */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
+                  ✓
+                </div>
+                <div className="w-24 h-0.5 bg-black"></div>
+                <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
+                  ✓
+                </div>
+                <div className="w-24 h-0.5 bg-gray-300"></div>
+                <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
+                  3
+                </div>
+              </div>
+            </div>
+
+            <CompanyInformation
+              onDataChange={handleCompanyDataChange}
+              onSubmit={handleCompanySubmit}
+              initialData={companyData}
+            />
+
+            {/* Back button */}
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setStep("form")}
+                className="w-full py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+            </div>
+
             {message && (
               <div className="text-center text-sm mt-4 text-red-600">
                 {message}
