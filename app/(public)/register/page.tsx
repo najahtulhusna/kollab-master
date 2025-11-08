@@ -1,12 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
+import { signIn, getSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
 import CompanyInformation, {
   CompanyData,
 } from "@/components/CompanyInformation";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
   const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'loading'
   const [formData, setFormData] = useState({
@@ -50,14 +53,40 @@ export default function SignUpPage() {
     console.log("Company data updated:", data); // For debugging
   };
 
-  const handleCompanySubmit = (data: CompanyData) => {
-    console.log("Company form submitted:", data);
-    setStep("loading");
-    // Here you can handle the company data submission
-    // For example, you could combine it with user registration or save it separately
+  const handleCompanySubmit = async (data: CompanyData) => {
+    setMessage("");
+    setLoading(true);
+    try {
+      // Get user id from next-auth session
+      const session = await getSession();
+      const userId = session?.user?.id;
+      if (!userId) {
+        setMessage("User ID not found in session. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      const res = await fetch("/api/business/saveOrUpdateBusiness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          name: data.companyName,
+          job_position: data.jobPosition,
+        }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        router.push("/bussiness/profile");
+      } else {
+        setMessage(result.error || "Failed to save business information.");
+      }
+    } catch (err) {
+      setMessage("Failed to save business information.");
+    }
+    setLoading(false);
   };
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     // setStep("loading");
@@ -84,6 +113,32 @@ export default function SignUpPage() {
     const data = await res.json();
     if (res.ok && data.user) {
       setMessage("Registration successful! You can now log in.");
+
+      try {
+        // Auto-login the user
+        const signInResult = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        });
+
+        if (signInResult?.ok) {
+          if (userType === "bussiness") {
+            setStep("company");
+          } else {
+            router.push("/bussiness/profile");
+          }
+        } else {
+          router.push("/login");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Auto-login error:", error);
+        router.push("/login");
+        setLoading(false);
+      }
+
+      // Clear form data
       setFormData({
         firstName: "",
         lastName: "",
@@ -93,23 +148,12 @@ export default function SignUpPage() {
         repeatPassword: "",
         // avatar_url: "", // Uncomment if you add avatar support
       });
-      // Move to company information step if user type is business
-      if (userType === "bussiness") {
-        setStep("company");
-      } else {
-        // For other user types, proceed to loading or complete registration
-        setStep("loading");
-      }
     } else {
       setMessage(data.error || "Registration failed.");
       // setStep("form");
     }
     setLoading(false);
-    // redirect to business profile page after successful registration
-    if (res.ok && data.user) {
-      // window.location.href = "/bussiness/profile";
-    }
-  }
+  };
 
   // Selection Screen
   if (step === "selection") {
@@ -123,7 +167,7 @@ export default function SignUpPage() {
         <main className="flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
             {/* Progress Indicator */}
-            <div className="flex items-center justify-center mb-8">
+            {/* <div className="flex items-center justify-center mb-8">
               <div className="flex items-center">
                 <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
                   ✓
@@ -141,7 +185,7 @@ export default function SignUpPage() {
                   </>
                 )}
               </div>
-            </div>
+            </div> */}
 
             {/* Form Title */}
             <h1 className="text-2xl font-bold mb-2">Create your account</h1>
@@ -302,39 +346,11 @@ export default function SignUpPage() {
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
-            {/* Progress Indicator */}
-            <div className="flex items-center justify-center mb-8">
-              <div className="flex items-center">
-                <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
-                  ✓
-                </div>
-                <div className="w-24 h-0.5 bg-black"></div>
-                <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
-                  ✓
-                </div>
-                <div className="w-24 h-0.5 bg-gray-300"></div>
-                <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
-                  3
-                </div>
-              </div>
-            </div>
-
             <CompanyInformation
               onDataChange={handleCompanyDataChange}
               onSubmit={handleCompanySubmit}
               initialData={companyData}
             />
-
-            {/* Back button */}
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => setStep("form")}
-                className="w-full py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-            </div>
 
             {message && (
               <div className="text-center text-sm mt-4 text-red-600">

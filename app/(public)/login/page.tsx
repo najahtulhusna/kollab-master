@@ -14,37 +14,38 @@ import {
 } from "lucide-react";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setemail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
-  const [step, setStep] = useState("selection"); // 'selection', 'form'
+  const [step, setStep] = useState("form"); // 'selection', 'form'
+  const [forgotLoading, setForgotLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    if (!userType) {
-      setMessage("Please select your user type.");
-      setLoading(false);
-      return;
-    }
-    // Let NextAuth handle the redirect and session
+    // if (!userType) {
+    //   setMessage("Please select your user type.");
+    //   setLoading(false);
+    //   return;
+    // }
+
     const result = await signIn("credentials", {
-      username,
+      email,
       password,
-      userType,
       redirect: false,
       callbackUrl:
-        userType === "bussiness" ? "/bussiness/profile" : "/bussiness/profile", // update if influencer profile exists
+        userType === "bussiness" ? "/bussiness/profile" : "/bussiness/profile",
     });
 
     if (result?.error) {
+      console.log("Login error:", result.error);
       setMessage(
         result.error === "CredentialsSignin"
-          ? "Invalid email, password, or user type."
+          ? "Invalid email, or password. Please try again."
           : result.error
       );
       setLoading(false);
@@ -57,6 +58,30 @@ export default function LoginPage() {
     }
     setLoading(false);
   }
+
+  const handleForgotPassword = async () => {
+    setForgotLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/auth/main/forgotPassword", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(
+          "Password reset to 123456. Please check your email or try logging in with the new password."
+        );
+      } else {
+        setMessage(data.error || "Failed to reset password.");
+      }
+    } catch (err) {
+      setMessage("Failed to reset password.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   // Selection Screen
   if (step === "selection") {
@@ -77,16 +102,16 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div>
               <label className="block text-base font-semibold mb-2 text-black">
-                Username <span className="text-red-500">*</span>
+                email <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  name="username"
+                  name="email"
                   placeholder="Placeholder"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setemail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                   required
                 />
@@ -113,8 +138,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-black font-semibold hover:underline"
+                onClick={handleForgotPassword}
+                disabled={forgotLoading || !email}
               >
-                Forgot Password?
+                {forgotLoading ? "Processing..." : "Forgot Password?"}
               </button>
             </div>
             <div className="flex gap-4">

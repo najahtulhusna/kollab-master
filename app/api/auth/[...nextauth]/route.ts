@@ -30,9 +30,9 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        userType: { label: "User Type", type: "text" },
       },
       async authorize(credentials) {
+        console.log("[Auth] Authorizing credentials:", credentials);
         try {
           if (!credentials?.email || !credentials?.password) {
             console.error("[Auth] Missing credentials");
@@ -48,13 +48,13 @@ export const authOptions: NextAuthOptions = {
               .from("users")
               .select("*")
               .eq("email", credentials.email)
-              .eq("usertype", credentials.userType)
               .single();
 
           if (userError) {
             console.error("[Auth] Database error:", userError.message);
             return null;
           }
+          console.log("[Auth] User query result:", user);
 
           if (!user) {
             console.error(
@@ -64,12 +64,6 @@ export const authOptions: NextAuthOptions = {
             );
             return null;
           }
-
-          console.log("[Auth] User found:", {
-            id: user.id,
-            email: user.email,
-            usertype: user.usertype,
-          });
 
           // Step 2: Check if local account exists for this user id
           const { data: account, error: accountError } =
@@ -91,8 +85,6 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          console.log("[Auth] Local account found, checking password...");
-
           // Step 3: Check if password_hash is correct
           const bcrypt = require("bcryptjs");
           const isValid = await bcrypt.compare(
@@ -108,20 +100,14 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          console.log("[Auth] Login successful for:", credentials.email);
-
-          // Return user object for session
-          const displayName =
-            user.username ||
-            (user.firstname && user.lastname
-              ? `${user.firstname} ${user.lastname}`
-              : user.firstname || user.lastname || user.email);
-
           return {
             id: user.id,
             email: user.email,
-            name: displayName,
+            username: user.username,
             image: user.avatar_url,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            usertype: user.usertype,
           };
         } catch (error) {
           console.error("[Auth] Authorize error:", error);
@@ -134,18 +120,41 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt" as SessionStrategy,
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, trigger, user, session }) {
+      console.log("next jwt", user, session);
+      if (session) {
+        token.id = session.id;
+        token.email = session.email;
+        token.name = session.name;
+        token.image = session.image;
+        token.username = (session as any).username;
+        token.firstname = (session as any).firstname;
+        token.lastname = (session as any).lastname;
+        token.usertype = (session as any).usertype;
+      }
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.picture = user.image;
+        token.image = user.image;
+        token.username = (user as any).username;
+        token.firstname = (user as any).firstname;
+        token.lastname = (user as any).lastname;
+        token.usertype = (user as any).usertype;
       }
       return token;
     },
     async session({ session, token }) {
+      console.log("next session callback", token);
       if (session.user) {
+        console.log("next session callback 2 ", session.user);
         (session.user as any).id = token.id as string;
+        (session.user as any).username = token.username as string;
+        (session.user as any).image = token.image as string;
+        (session.user as any).firstname = token.firstname as string;
+        (session.user as any).lastname = token.lastname as string;
+        (session.user as any).usertype = token.usertype as string;
+        console.log("next session callback 23 ", session.user);
       }
       return session;
     },

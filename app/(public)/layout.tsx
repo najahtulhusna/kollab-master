@@ -15,7 +15,7 @@ export default function PublicLayout({
         <div className="text-3xl font-bold">
           <img src="/logo-v1.svg" alt="Logo" />
         </div>
-        <div className="flex gap-4 items-center bg-white rounded shadow p-2 ">
+        {/* <div className="flex gap-4 items-center bg-white rounded shadow p-2 ">
           <Link href="/login">
             <button
               className={`px-4 py-2 text-sm font-medium rounded cursor-pointer ${
@@ -38,7 +38,7 @@ export default function PublicLayout({
               Sign Up
             </button>
           </Link>
-        </div>
+        </div> */}
       </header>
       <main className="flex-1 h-[calc(100vh-100px)">{children}</main>
     </div>
