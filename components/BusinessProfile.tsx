@@ -32,9 +32,9 @@ export default function BusinessProfile({
   const [businessSaveSuccess, setBusinessSaveSuccess] = useState("");
 
   useEffect(() => {
-    if (usertype === "bussiness") {
+    if (usertype === "business") {
       setBusinessLoading(true);
-      fetch("/api/bussiness")
+      fetch("/api/business/getBusinessDetails")
         .then((res) => res.json())
         .then((data) => {
           if (data.business) {
@@ -60,7 +60,7 @@ export default function BusinessProfile({
     }
   }, [businessInfo]);
 
-  if (usertype !== "bussiness") return null;
+  if (usertype !== "business") return null;
 
   return (
     <div className="">
@@ -147,16 +147,19 @@ export default function BusinessProfile({
                 setBusinessSaveError("");
                 setBusinessSaveSuccess("");
                 try {
-                  const res = await fetch("/api/bussiness", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id: businessForm.id,
-                      user_id: userId,
-                      name: businessForm.name,
-                      job_position: businessForm.job_position,
-                    }),
-                  });
+                  const res = await fetch(
+                    "/api/business/saveOrUpdateBusiness",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        id: businessForm.id,
+                        user_id: userId,
+                        name: businessForm.name,
+                        job_position: businessForm.job_position,
+                      }),
+                    }
+                  );
                   const data = await res.json();
                   if (res.ok) {
                     setBusinessSaveSuccess("Business info updated!");

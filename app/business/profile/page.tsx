@@ -40,47 +40,6 @@ export default function BusinessProfilePage() {
     lastname: "",
     password: "",
   });
-  const [businessInfo, setBusinessInfo] = useState<any>(null);
-  const [businessLoading, setBusinessLoading] = useState(false);
-  const [businessError, setBusinessError] = useState("");
-  const [businessEdit, setBusinessEdit] = useState(false);
-  const [businessForm, setBusinessForm] = useState({
-    id: businessInfo?.id || "",
-    name: businessInfo?.name || "",
-    job_position: businessInfo?.job_position || "",
-  });
-  const [businessSaveLoading, setBusinessSaveLoading] = useState(false);
-  const [businessSaveError, setBusinessSaveError] = useState("");
-  const [businessSaveSuccess, setBusinessSaveSuccess] = useState("");
-
-  useEffect(() => {
-    if (session?.user?.usertype === "bussiness") {
-      setBusinessLoading(true);
-      fetch("/api/bussiness")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.business) {
-            setBusinessInfo(data.business);
-          } else {
-            setBusinessError(data.error || "No business info found");
-          }
-        })
-        .catch((err) => {
-          setBusinessError("Failed to fetch business info");
-        })
-        .finally(() => setBusinessLoading(false));
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (businessInfo) {
-      setBusinessForm({
-        id: businessInfo.id || "",
-        name: businessInfo.name || "",
-        job_position: businessInfo.job_position || "",
-      });
-    }
-  }, [businessInfo]);
 
   if (status === "loading") {
     return (
@@ -461,11 +420,13 @@ export default function BusinessProfilePage() {
         </div>
       </div>
       {/* Move BusinessProfile outside the profile card */}
-      <div className="max-w-2xl ">
-        <div className="bg-card border rounded-lg shadow-sm mt-4 p-6">
-          <BusinessProfile userId={userId} usertype={usertype} />
+      {usertype === "business" && (
+        <div className="max-w-2xl ">
+          <div className="bg-card border rounded-lg shadow-sm mt-4 p-6">
+            <BusinessProfile userId={userId} usertype={usertype} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Password Confirmation Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={handleDialogClose}>

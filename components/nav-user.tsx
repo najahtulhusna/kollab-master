@@ -88,7 +88,7 @@ export function NavUser({
                 onClick={() =>
                   handleNavigation(
                     user.userType === "business"
-                      ? "/bussiness/profile"
+                      ? "/business/profile"
                       : "/personal/profile"
                   )
                 }
@@ -97,13 +97,13 @@ export function NavUser({
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handleNavigation("/bussiness/billing")}
+                onClick={() => handleNavigation("/business/billing")}
               >
                 <CreditCard />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handleNavigation("/bussiness/notifications")}
+                onClick={() => handleNavigation("/business/notifications")}
               >
                 <Bell />
                 Notifications

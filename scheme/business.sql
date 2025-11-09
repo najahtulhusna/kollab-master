@@ -1,6 +1,6 @@
 
 
-CREATE TABLE bussiness (
+CREATE TABLE business (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT UNIQUE NOT NULL,  
@@ -8,4 +8,4 @@ CREATE TABLE bussiness (
 );
 
 -- Index for faster lookups by user_id
-CREATE INDEX idx_bussiness_user_id ON sessions(user_id);
+CREATE INDEX idx_business_user_id ON sessions(user_id);

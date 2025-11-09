@@ -38,7 +38,7 @@ export default function LoginPage() {
       password,
       redirect: false,
       callbackUrl:
-        userType === "bussiness" ? "/bussiness/profile" : "/bussiness/profile",
+        userType === "business" ? "/business/profile" : "/business/profile",
     });
 
     if (result?.error) {
@@ -168,7 +168,7 @@ export default function LoginPage() {
               className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
               onClick={() =>
                 signIn("google", {
-                  callbackUrl: "/bussiness/profile",
+                  callbackUrl: "/api/auth/main/socialredirect",
                 })
               }
             >
@@ -178,7 +178,9 @@ export default function LoginPage() {
               type="button"
               className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
               onClick={() =>
-                signIn("facebook", { callbackUrl: "/bussiness/profile" })
+                signIn("facebook", {
+                  callbackUrl: "/api/auth/main/socialredirect",
+                })
               }
             >
               <Facebook className="w-5 h-5" /> Sign in with Facebook
@@ -187,7 +189,9 @@ export default function LoginPage() {
               type="button"
               className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
               onClick={() =>
-                signIn("instagram", { callbackUrl: "/bussiness/profile" })
+                signIn("instagram", {
+                  callbackUrl: "/api/auth/main/socialredirect",
+                })
               }
             >
               <Instagram className="w-5 h-5" /> Sign in with Instagram

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
-
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-// ─── Get Business Info by User ID from Session ──────────
-export async function GET(req: NextRequest) {
+
+async function getBusinessDetails(req: NextRequest) {
   // Get session
   const session = await getServerSession(authOptions);
   console.log("Session in business GET route:", session);
@@ -17,12 +16,22 @@ export async function GET(req: NextRequest) {
   }
   const supabase = supabaseServer();
   const { data, error } = await supabase
-    .from("bussiness")
+    .from("business")
     .select("*")
     .eq("user_id", userId)
     .single();
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  console.log("Business query result:", data, error);
+
+  if (!data) {
+    // Return default business object if not found
+    const defaultBusiness = {
+      id: "",
+      user_id: userId,
+      name: "",
+      job_position: "",
+    };
+    return NextResponse.json({ business: defaultBusiness });
   }
   return NextResponse.json({ business: data });
 }
@@ -51,7 +60,7 @@ async function saveOrUpdateBusiness(body: any) {
     if (id) {
       // Try update by id
       const { data, error } = await supabase
-        .from("bussiness")
+        .from("business")
         .update({ name, job_position })
         .eq("id", id)
         .select()
@@ -63,8 +72,8 @@ async function saveOrUpdateBusiness(body: any) {
     } else {
       // Insert new
       const { data, error } = await supabase
-        .from("bussiness")
-        .insert([{ userId, name, job_position }])
+        .from("business")
+        .insert([{ user_id, name, job_position }])
         .select()
         .single();
       if (error) {
@@ -81,7 +90,26 @@ async function saveOrUpdateBusiness(body: any) {
 }
 
 // ─── Router Dispatcher ──────────────────────
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest, context: any) {
+  const action = context.params?.action;
+  const actions: Record<string, () => Promise<NextResponse>> = {
+    getBusinessDetails: () => getBusinessDetails(req),
+  };
+  const fn = actions[action];
+  if (!fn) {
+    return NextResponse.json({ error: "Invalid GET action" }, { status: 404 });
+  }
+  return fn();
+}
+export async function POST(req: NextRequest, context: any) {
+  const action = context.params?.action;
   const body = await req.json();
-  return saveOrUpdateBusiness(body);
+  const actions: Record<string, (body: any) => Promise<NextResponse>> = {
+    saveOrUpdateBusiness: saveOrUpdateBusiness,
+  };
+  const fn = actions[action];
+  if (!fn) {
+    return NextResponse.json({ error: "Invalid POST action" }, { status: 404 });
+  }
+  return fn(body);
 }

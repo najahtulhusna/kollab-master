@@ -1,6 +1,6 @@
 import React from "react";
 import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
-export type AuthSelectionType = "bussiness" | "influencer";
+export type AuthSelectionType = "business" | "influencer";
 
 interface AuthSelectionProps {
   onSelect: (type: AuthSelectionType) => void;
@@ -26,7 +26,7 @@ const AuthSelection: React.FC<AuthSelectionProps> = ({
           <div className="flex flex-wrap justify-center gap-6">
             <button
               onClick={() => {
-                onSelect("bussiness");
+                onSelect("business");
                 onNextStep("form");
               }}
               className="flex flex-col items-center justify-center w-40 h-40 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md transition-all"

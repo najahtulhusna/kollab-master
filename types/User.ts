@@ -8,4 +8,5 @@ export interface User {
   firstname: string;
   lastname: string;
   usertype: "business" | "influencer";
+  name?: string;
 }

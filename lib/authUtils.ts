@@ -5,11 +5,12 @@ import { AuthUser, AuthAccount, AuthSession } from "../types/AuthTypes";
 export function AuthUtils(): Adapter {
   const adapter: Adapter = {
     async createUser(user: Omit<AuthUser, "id">) {
+      console.log("Creating user in AuthUtils:", user);
       const { data, error } = await supabaseServer()
         .from("users")
         .insert({
           email: user.email,
-          username: user.username,
+          firstname: user.name,
           avatar_url: user.image ?? undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -18,6 +19,7 @@ export function AuthUtils(): Adapter {
         .select()
         .single();
       if (error) throw error;
+      console.log("Creating user in AuthUtils success:", user);
       return {
         ...data,
         emailVerified: null,
@@ -38,12 +40,14 @@ export function AuthUtils(): Adapter {
       } as AuthUser;
     },
     async getUserByEmail(email: string) {
+      console.log("getUserByEmail called with email:", email);
       const { data, error } = await supabaseServer()
         .from("users")
         .select("*")
         .eq("email", email)
         .single();
       if (error || !data) return null;
+      console.log("getUserByEmail called with email success:", email);
       return {
         ...data,
         emailVerified: null,

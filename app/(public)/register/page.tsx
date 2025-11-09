@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
-import { signIn, getSession } from "next-auth/react";
+import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
 import CompanyInformation, {
@@ -9,6 +10,23 @@ import CompanyInformation, {
 } from "@/components/CompanyInformation";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const isSocial = searchParams.get("social") === "true";
+    if (isSocial) {
+      getSession().then((session) => {
+        if (session) {
+          setFormData((prev) => ({
+            ...prev,
+            firstName: session.user?.firstname || "",
+            email: session.user?.email || "",
+          }));
+        }
+        console.log("Session info for social registration:", session);
+      });
+    }
+  }, [searchParams]);
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
   const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'loading'
@@ -76,7 +94,7 @@ export default function SignUpPage() {
       });
       const result = await res.json();
       if (res.ok) {
-        router.push("/bussiness/profile");
+        router.push("/business/profile");
       } else {
         setMessage(result.error || "Failed to save business information.");
       }
@@ -89,14 +107,51 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // setStep("loading");
     setMessage("");
-    // Validate passwords match
     if (formData.password !== formData.repeatPassword) {
       setMessage("Passwords do not match.");
       setLoading(false);
       return;
     }
+    // Check if session exists (social login)
+    const session = await getSession();
+    if (session && session.user) {
+      // Social user: update existing user
+      const res = await fetch("/api/auth/main/updateProfile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: session.user.id,
+          email: formData.email,
+          username: formData.username,
+          firstname: formData.firstName,
+          lastname: formData.lastName,
+          password: formData.password,
+          usertype: userType,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        await update({
+          ...session?.user,
+          username: formData.username,
+          email: formData.email,
+          firstname: formData.firstName,
+          lastname: formData.lastName,
+          usertype: userType,
+        });
+        if (userType === "business") {
+          setStep("company");
+        } else {
+          router.push("/business/profile");
+        }
+      } else {
+        setMessage(data.error || "Profile update failed.");
+      }
+      setLoading(false);
+      return;
+    }
+    // Normal registration flow
     const res = await fetch("/api/auth/main/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,13 +162,11 @@ export default function SignUpPage() {
         firstname: formData.firstName,
         lastname: formData.lastName,
         usertype: userType,
-        // avatar_url: formData.avatar_url || null, // Uncomment if you add avatar support
       }),
     });
     const data = await res.json();
     if (res.ok && data.user) {
       setMessage("Registration successful! You can now log in.");
-
       try {
         // Auto-login the user
         const signInResult = await signIn("credentials", {
@@ -121,12 +174,11 @@ export default function SignUpPage() {
           password: formData.password,
           redirect: false,
         });
-
         if (signInResult?.ok) {
-          if (userType === "bussiness") {
+          if (userType === "business") {
             setStep("company");
           } else {
-            router.push("/bussiness/profile");
+            router.push("/business/profile");
           }
         } else {
           router.push("/login");
@@ -137,8 +189,6 @@ export default function SignUpPage() {
         router.push("/login");
         setLoading(false);
       }
-
-      // Clear form data
       setFormData({
         firstName: "",
         lastName: "",
@@ -146,11 +196,9 @@ export default function SignUpPage() {
         username: "",
         password: "",
         repeatPassword: "",
-        // avatar_url: "", // Uncomment if you add avatar support
       });
     } else {
       setMessage(data.error || "Registration failed.");
-      // setStep("form");
     }
     setLoading(false);
   };
@@ -176,7 +224,7 @@ export default function SignUpPage() {
                 <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
                   2
                 </div>
-                {userType === "bussiness" && (
+                {userType === "business" && (
                   <>
                     <div className="w-24 h-0.5 bg-gray-300"></div>
                     <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">

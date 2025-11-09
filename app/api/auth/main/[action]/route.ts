@@ -1,20 +1,38 @@
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
-import test from "node:test";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
 // ─── Actions ────────────────────────────────
-async function getTest() {
-  const supabase = supabaseServer();
-  const { data, error } = await supabase.from("test-table").select("*");
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+// Social redirect handler
+async function socialRedirect(req: NextRequest) {
+  // Get the session
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || !(session.user as any).email) {
+    // Not logged in, redirect to login
+    return NextResponse.redirect(new URL("/login", req.url));
   }
-
-  return NextResponse.json(data);
+  const email = (session.user as any).email;
+  // Check user in DB
+  const supabase = supabaseServer();
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("username")
+    .eq("email", email)
+    .single();
+  if (!error && user && user.username) {
+    // Username exists, go to profile page
+    return NextResponse.redirect(new URL("/business/profile", req.url));
+  }
+  // Otherwise, go to signup page with social param
+  return NextResponse.redirect(new URL("/register?social=true", req.url));
+}
+async function getTest() {
+  return NextResponse.json({ message: "Test GET route is working!" });
 }
 
 async function testApi() {
@@ -69,7 +87,8 @@ async function verifyPassword(body: any) {
 
 async function updateProfile(body: any) {
   try {
-    const { userId, email, username, firstname, lastname, password } = body;
+    const { userId, email, username, firstname, lastname, password, usertype } =
+      body;
 
     if (!userId) {
       return NextResponse.json(
@@ -118,6 +137,7 @@ async function updateProfile(body: any) {
     if (username) updateData.username = username;
     if (firstname) updateData.firstname = firstname;
     if (lastname) updateData.lastname = lastname;
+    if (usertype) updateData.usertype = usertype;
 
     // Update user profile
     const { data: updatedUser, error: updateError } = await supabase
@@ -364,15 +384,13 @@ async function updateAvatar(req: NextRequest) {
 
 // ─── Router Dispatcher ──────────────────────
 export async function GET(req: NextRequest, context: any) {
-  // ⚠️ simplest and safest for now
   const action = context.params?.action;
-
   const actions: Record<string, () => Promise<NextResponse>> = {
     getTest: getTest,
     testApi: testApi,
+    socialredirect: () => socialRedirect(req),
     // "users": getUsers,
   };
-
   const fn = actions[action];
   if (!fn) {
     return NextResponse.json({ error: "Invalid GET action" }, { status: 404 });

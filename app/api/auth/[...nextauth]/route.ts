@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
 
           console.log("[Auth] Attempting login for:", credentials.email);
 
-          // Step 1: Check if user exists by email and usertype
+          // Step 1: Check if user exists by email
           const { data: user, error: userError } =
             await require("@/lib/supabase")
               .supabaseServer()
@@ -58,9 +58,8 @@ export const authOptions: NextAuthOptions = {
 
           if (!user) {
             console.error(
-              "[Auth] No user found with email and usertype:",
-              credentials.email,
-              credentials.userType
+              "[Auth] No user found with email:",
+              credentials.email
             );
             return null;
           }
@@ -121,7 +120,6 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, trigger, user, session }) {
-      console.log("next jwt", user, session);
       if (session) {
         token.id = session.id;
         token.email = session.email;
@@ -145,16 +143,13 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log("next session callback", token);
       if (session.user) {
-        console.log("next session callback 2 ", session.user);
         (session.user as any).id = token.id as string;
         (session.user as any).username = token.username as string;
         (session.user as any).image = token.image as string;
         (session.user as any).firstname = token.firstname as string;
         (session.user as any).lastname = token.lastname as string;
         (session.user as any).usertype = token.usertype as string;
-        console.log("next session callback 23 ", session.user);
       }
       return session;
     },
