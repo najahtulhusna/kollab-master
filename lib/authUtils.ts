@@ -1,44 +1,75 @@
 import { supabaseServer } from "../lib/supabase";
-import { Adapter, VerificationToken } from "next-auth/adapters";
+import { Adapter } from "next-auth/adapters";
 import { AuthUser, AuthAccount, AuthSession } from "../types/AuthTypes";
 
 export function AuthUtils(): Adapter {
   const adapter: Adapter = {
-    async createUser(user: Omit<AuthUser, "id">) {
+    async createUser(user: any) {
       console.log("Creating user in AuthUtils:", user);
+      
+      // Extract name parts from user.name if available
+      const nameParts = user.name ? user.name.split(' ') : ['', ''];
+      const firstname = nameParts[0] || '';
+      const lastname = nameParts.slice(1).join(' ') || '';
+      
+      // Generate username from email
+      const username = user.email.split('@')[0];
+      
       const { data, error } = await supabaseServer()
         .from("users")
         .insert({
           email: user.email,
-          firstname: user.name,
-          avatar_url: user.image ?? undefined,
+          username: username,
+          firstname: firstname,
+          lastname: lastname,
+          avatar_url: user.image ?? null,
+          usertype: user.usertype || 'influencer', // Default to influencer if not specified
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          usertype: user.usertype,
         })
         .select()
         .single();
-      if (error) throw error;
-      console.log("Creating user in AuthUtils success:", user);
+      
+      if (error) {
+        console.error("Error creating user in AuthUtils:", error);
+        throw error;
+      }
+      
+      console.log("Creating user in AuthUtils success:", data);
+      
       return {
-        ...data,
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        usertype: data.usertype,
         emailVerified: null,
         image: data.avatar_url ?? undefined,
       } as AuthUser;
     },
+    
     async getUser(id: string) {
       const { data, error } = await supabaseServer()
         .from("users")
         .select("*")
         .eq("id", id)
         .single();
+      
       if (error || !data) return null;
+      
       return {
-        ...data,
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        usertype: data.usertype,
         emailVerified: null,
         image: data.avatar_url ?? undefined,
       } as AuthUser;
     },
+    
     async getUserByEmail(email: string) {
       console.log("getUserByEmail called with email:", email);
       const { data, error } = await supabaseServer()
@@ -46,14 +77,23 @@ export function AuthUtils(): Adapter {
         .select("*")
         .eq("email", email)
         .single();
+      
       if (error || !data) return null;
+      
       console.log("getUserByEmail called with email success:", email);
+      
       return {
-        ...data,
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        usertype: data.usertype,
         emailVerified: null,
         image: data.avatar_url ?? undefined,
       } as AuthUser;
     },
+    
     async getUserByAccount({
       provider,
       providerAccountId,
@@ -67,33 +107,59 @@ export function AuthUtils(): Adapter {
         .eq("provider", provider)
         .eq("provider_account_id", providerAccountId)
         .single();
+      
       if (error || !data) return null;
+      
       return await adapter.getUser!(data.user_id);
     },
-    async updateUser(user: Partial<AuthUser> & { id: string }) {
+    
+    async updateUser(user: any) {
+      const updateData: any = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (user.name !== undefined && user.name !== null) {
+        const nameParts = user.name.split(' ');
+        updateData.firstname = nameParts[0] || '';
+        updateData.lastname = nameParts.slice(1).join(' ') || '';
+      }
+      
+      if (user.image !== undefined) {
+        updateData.avatar_url = user.image ?? null;
+      }
+      
+      if (user.email !== undefined) {
+        updateData.email = user.email;
+      }
+      
       const { data, error } = await supabaseServer()
         .from("users")
-        .update({
-          name: user.name,
-          avatar_url: user.image ?? undefined,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", user.id)
         .select()
         .single();
+      
       if (error) throw error;
+      
       return {
-        ...data,
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        usertype: data.usertype,
         emailVerified: null,
         image: data.avatar_url ?? undefined,
       } as AuthUser;
     },
+    
     async deleteUser(id: string) {
       await supabaseServer().from("users").delete().eq("id", id);
     },
-    async linkAccount(account: AuthAccount) {
-      // Log for debugging social account creation
+    
+    async linkAccount(account: any) {
       console.log("[NextAuth] linkAccount called", account);
+      
       const { data, error } = await supabaseServer()
         .from("accounts")
         .insert({
@@ -107,6 +173,7 @@ export function AuthUtils(): Adapter {
           updated_at: new Date().toISOString(),
         })
         .select();
+      
       if (error) {
         console.error(
           "[NextAuth] linkAccount error:",
@@ -117,6 +184,7 @@ export function AuthUtils(): Adapter {
         console.log("[NextAuth] linkAccount success:", data);
       }
     },
+    
     async unlinkAccount({
       provider,
       providerAccountId,
@@ -130,68 +198,86 @@ export function AuthUtils(): Adapter {
         .eq("provider", provider)
         .eq("provider_account_id", providerAccountId);
     },
-    async createSession(session: {
-      sessionToken: string;
-      userId: string;
-      expires: Date;
-    }) {
+    
+    async createSession(session: any) {
       const { data, error } = await supabaseServer()
         .from("sessions")
         .insert({
           user_id: session.userId,
           session_token: session.sessionToken,
-          expires_at: session.expires,
+          expires_at: session.expires.toISOString(),
           created_at: new Date().toISOString(),
         })
         .select()
         .single();
+      
       if (error) throw error;
+      
       return {
-        ...data,
         sessionToken: data.session_token,
         userId: data.user_id,
-        expires: data.expires_at ? new Date(data.expires_at) : undefined,
+        expires: new Date(data.expires_at),
       } as AuthSession;
     },
+    
     async getSessionAndUser(sessionToken: string) {
       const { data, error } = await supabaseServer()
         .from("sessions")
         .select("*, users(*)")
         .eq("session_token", sessionToken)
         .single();
+      
       if (error || !data) return null;
+      
       return {
         session: {
           sessionToken: data.session_token,
           userId: data.user_id,
-          expires: data.expires_at,
-        },
-        user: { ...data.users, emailVerified: null },
+          expires: new Date(data.expires_at),
+        } as AuthSession,
+        user: {
+          id: (data.users as any).id,
+          email: (data.users as any).email,
+          username: (data.users as any).username,
+          firstname: (data.users as any).firstname,
+          lastname: (data.users as any).lastname,
+          usertype: (data.users as any).usertype,
+          emailVerified: null,
+          image: (data.users as any).avatar_url ?? undefined,
+        } as AuthUser,
       };
     },
-    async updateSession(session: { sessionToken: string; expires: Date }) {
+    
+    async updateSession(session: any) {
+      const updateData: any = {};
+      
+      if (session.expires) {
+        updateData.expires_at = session.expires.toISOString();
+      }
+      
       const { data, error } = await supabaseServer()
         .from("sessions")
-        .update({
-          expires_at: session.expires,
-        })
+        .update(updateData)
         .eq("session_token", session.sessionToken)
         .select()
         .single();
+      
       if (error) throw error;
+      
       return {
-        ...data,
         sessionToken: data.session_token,
         userId: data.user_id,
-        expires: data.expires_at ? new Date(data.expires_at) : undefined,
+        expires: new Date(data.expires_at),
       } as AuthSession;
     },
+    
     async deleteSession(sessionToken: string) {
       await supabaseServer()
         .from("sessions")
         .delete()
         .eq("session_token", sessionToken);
     },
+    
     async createVerificationToken(params: {
       identifier: string;
       token: string;
@@ -200,10 +286,12 @@ export function AuthUtils(): Adapter {
       // Optional: implement if using email verification
       return null;
     },
+    
     async useVerificationToken(params: { identifier: string; token: string }) {
       // Optional: implement if using email verification
       return null;
     },
   };
+  
   return adapter;
 }
