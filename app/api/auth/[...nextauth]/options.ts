@@ -116,6 +116,15 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt" as SessionStrategy,
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      console.log('[Auth] Redirect - url:', url, 'baseUrl:', baseUrl);
+      
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      
+      if (new URL(url).origin === baseUrl) return url;
+      
+      return `${baseUrl}/business/profile`;
+    },
     async jwt({ token, trigger, user, session }) {
       if (session) {
         token.id = session.id;
