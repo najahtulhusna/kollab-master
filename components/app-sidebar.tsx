@@ -154,7 +154,7 @@ export function AppSidebar({
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="text-3xl font-bold p-2">
-          <img src="/logo-v1.svg" alt="Logo" />
+          <img src="/kollab-logo-no-background.png" alt="Logo" />
         </div>
       </SidebarHeader>
       <SidebarContent>

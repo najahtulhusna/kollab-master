@@ -1,35 +1,19 @@
 "use client";
-import { useSearchParams } from "next/navigation";
-import React, { useState, useEffect } from "react";
-import { Briefcase, Sparkles, User, Mail, Lock } from "lucide-react";
-import { signIn, getSession, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getSession, signIn, useSession } from "next-auth/react";
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
 import CompanyInformation, {
   CompanyData,
 } from "@/components/CompanyInformation";
+import SignupForm from "@/components/signup-form";
 
-export default function SignUpPage() {
+function SignUpContent() {
   const searchParams = useSearchParams();
-  useEffect(() => {
-    const isSocial = searchParams.get("social") === "true";
-    if (isSocial) {
-      getSession().then((session) => {
-        if (session) {
-          setFormData((prev) => ({
-            ...prev,
-            firstName: session.user?.firstname || "",
-            email: session.user?.email || "",
-          }));
-        }
-        console.log("Session info for social registration:", session);
-      });
-    }
-  }, [searchParams]);
-  const { data: session, status, update } = useSession();
+  const { update } = useSession();
   const router = useRouter();
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
-  const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'loading'
+  const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'categories', 'teamSize'
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -37,22 +21,45 @@ export default function SignUpPage() {
     username: "",
     password: "",
     repeatPassword: "",
-    // avatar_url: "", // Uncomment and add input if you want avatar support
+    phone: "",
   });
   const [companyData, setCompanyData] = useState<CompanyData>({
     companyName: "",
     jobPosition: "",
   });
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [teamSize, setTeamSize] = useState("");
+  const [teamMode, setTeamMode] = useState<"independent" | "team" | "">("");
+  const [location, setLocation] = useState("");
+  const [referralSource, setReferralSource] = useState("");
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [completed, setCompleted] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("social") !== "true") return;
+    getSession().then((session) => {
+      if (session) {
+        setFormData((prev) => ({
+          ...prev,
+          firstName: session.user?.firstname || "",
+          email: session.user?.email || "",
+        }));
+        setStep("form");
+      }
+      console.log("Session info for social registration:", session);
+    });
+  }, [searchParams]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedForm = { ...formData, [name]: value };
     setFormData(updatedForm);
 
-    // Immediate password match validation
     if (name === "password" || name === "repeatPassword") {
       if (
         updatedForm.password &&
@@ -68,14 +75,43 @@ export default function SignUpPage() {
 
   const handleCompanyDataChange = (data: CompanyData) => {
     setCompanyData(data);
-    console.log("Company data updated:", data); // For debugging
+    console.log("Company data updated:", data);
   };
 
-  const handleCompanySubmit = async (data: CompanyData) => {
+  const handleCompanySubmit = (data: CompanyData) => {
+    setCompanyData(data);
+    setMessage("");
+    setStep("categories");
+  };
+
+  const handleFinalize = async () => {
     setMessage("");
     setLoading(true);
     try {
-      // Get user id from next-auth session
+      const categoryValue =
+        selectedCategory === "Other" ? customCategory : selectedCategory;
+      if (!categoryValue) {
+        setMessage("Please select a category.");
+        setLoading(false);
+        return;
+      }
+      if (userType === "business") {
+        if (!teamSize) {
+          setMessage("Please select your team size.");
+          setLoading(false);
+          return;
+        }
+        if (!location.trim()) {
+          setMessage("Please provide your business location.");
+          setLoading(false);
+          return;
+        }
+      }
+      if (!referralSource.trim()) {
+        setMessage("Please tell us how you heard about us.");
+        setLoading(false);
+        return;
+      }
       const session = await getSession();
       const userId = session?.user?.id;
       if (!userId) {
@@ -83,21 +119,41 @@ export default function SignUpPage() {
         setLoading(false);
         return;
       }
-      const res = await fetch("/api/business/saveOrUpdateBusiness", {
+      if (userType === "business") {
+        const res = await fetch("/api/business/saveOrUpdateBusiness", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            name: companyData.companyName,
+            job_position: companyData.jobPosition,
+            team_size: teamSize,
+            location,
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          setMessage(result.error || "Failed to save business information.");
+          setLoading(false);
+          return;
+        }
+      }
+      // Persist referral and categories to the user profile
+      const referralRes = await fetch("/api/auth/main/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          name: data.companyName,
-          job_position: data.jobPosition,
+          userId,
+          referral_source: referralSource,
+          categories: categoryValue,
         }),
       });
-      const result = await res.json();
-      if (res.ok) {
-        router.push("/business/profile");
-      } else {
-        setMessage(result.error || "Failed to save business information.");
+      if (!referralRes.ok) {
+        const referralData = await referralRes.json();
+        console.warn("Referral save failed:", referralData?.error);
       }
+      setCompleted(true);
+      setStep("completed");
     } catch (err) {
       setMessage("Failed to save business information.");
     }
@@ -113,37 +169,49 @@ export default function SignUpPage() {
       setLoading(false);
       return;
     }
+    if (!formData.phone) {
+      setMessage("Phone number is required.");
+      setLoading(false);
+      return;
+    }
+    if (!acceptedTerms) {
+      setMessage("Please accept the terms and conditions.");
+      setLoading(false);
+      return;
+    }
+
     // Check if session exists (social login)
-    const session = await getSession();
-    if (session && session.user) {
-      // Social user: update existing user
+    const existingSession = await getSession();
+    if (existingSession && existingSession.user) {
       const res = await fetch("/api/auth/main/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: session.user.id,
+          userId: existingSession.user.id,
           email: formData.email,
           username: formData.username,
           firstname: formData.firstName,
           lastname: formData.lastName,
           password: formData.password,
           usertype: userType,
+          phone: formData.phone,
         }),
       });
       const data = await res.json();
       if (res.ok && data.user) {
         await update({
-          ...session?.user,
+          ...existingSession.user,
           username: formData.username,
           email: formData.email,
           firstname: formData.firstName,
           lastname: formData.lastName,
           usertype: userType,
+          phone: formData.phone,
         });
         if (userType === "business") {
           setStep("company");
         } else {
-          router.push("/business/profile");
+          setStep("categories");
         }
       } else {
         setMessage(data.error || "Profile update failed.");
@@ -151,6 +219,7 @@ export default function SignUpPage() {
       setLoading(false);
       return;
     }
+
     // Normal registration flow
     const res = await fetch("/api/auth/main/register", {
       method: "POST",
@@ -162,13 +231,13 @@ export default function SignUpPage() {
         firstname: formData.firstName,
         lastname: formData.lastName,
         usertype: userType,
+        phone: formData.phone,
       }),
     });
     const data = await res.json();
     if (res.ok && data.user) {
       setMessage("Registration successful! You can now log in.");
       try {
-        // Auto-login the user
         const signInResult = await signIn("credentials", {
           email: formData.email,
           password: formData.password,
@@ -178,7 +247,7 @@ export default function SignUpPage() {
           if (userType === "business") {
             setStep("company");
           } else {
-            router.push("/business/profile");
+            setStep("categories");
           }
         } else {
           router.push("/login");
@@ -196,199 +265,151 @@ export default function SignUpPage() {
         username: "",
         password: "",
         repeatPassword: "",
+        phone: "",
       });
+      setAcceptedTerms(false);
     } else {
       setMessage(data.error || "Registration failed.");
     }
     setLoading(false);
   };
 
-  // Selection Screen
-  if (step === "selection") {
-    return <AuthSelection onSelect={setUserType} onNextStep={setStep} />;
+  if (completed || step === "completed") {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="w-full max-w-md text-center space-y-6 px-4">
+          <div className="text-3xl font-bold">Your account is all set!</div>
+          <p className="text-gray-600">
+            You can now access your profile and start using Kollab.
+          </p>
+          <button
+            className="w-full py-3 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+            onClick={() => router.push("/business/profile")}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  // Form Screen
-  if (step === "form") {
+  if (step === "selection") {
+    return (
+      <AuthSelection
+        onSelect={(type) => {
+          setUserType(type);
+          setStep("emailCheck");
+        }}
+        onNextStep={() => setStep("emailCheck")}
+      />
+    );
+  }
+
+  if (step === "emailCheck") {
     return (
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
-            {/* Progress Indicator */}
-            {/* <div className="flex items-center justify-center mb-8">
-              <div className="flex items-center">
-                <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
-                  ✓
-                </div>
-                <div className="w-24 h-0.5 bg-gray-300"></div>
-                <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
-                  2
-                </div>
-                {userType === "business" && (
-                  <>
-                    <div className="w-24 h-0.5 bg-gray-300"></div>
-                    <div className="flex items-center justify-center w-8 h-8 border-2 border-gray-300 rounded-full text-sm font-medium">
-                      3
-                    </div>
-                  </>
-                )}
-              </div>
-            </div> */}
-
-            {/* Form Title */}
-            <h1 className="text-2xl font-bold mb-2">Create your account</h1>
-            <p className="text-sm text-gray-600 mb-8">
-              Tell us a bit about yourself. Please fill in your personal
-              information.
+            <h1 className="text-2xl font-bold mb-2">Verify your email</h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Enter your email to check if an account already exists.
             </p>
-
-            {/* Form */}
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  First Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    name="firstName"
-                    placeholder="First Name"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    name="lastName"
-                    placeholder="Last Name"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5">
                   Email <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="yourname@mail.com"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    required
-                  />
-                </div>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  placeholder="you@example.com"
+                />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    name="username"
-                    placeholder="Username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  Repeat Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="password"
-                    name="repeatPassword"
-                    placeholder="Repeat Password"
-                    value={formData.repeatPassword}
-                    onChange={handleInputChange}
-                    className={`w-full pl-10 pr-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
-                      passwordError ? "border-red-500" : "border-gray-300"
-                    }`}
-                    required
-                  />
-                </div>
-                {passwordError && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {passwordError}
-                  </div>
-                )}
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => setStep("selection")}
                   className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+                  onClick={() => setStep("selection")}
                 >
                   Back
                 </button>
                 <button
-                  type="submit"
+                  type="button"
                   className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-                  disabled={loading}
+                  disabled={emailCheckLoading || !formData.email || !userType}
+                  onClick={async () => {
+                    if (!formData.email || !userType) {
+                      setMessage("Please enter email and select account type.");
+                      return;
+                    }
+                    setMessage("");
+                    setEmailCheckLoading(true);
+                    try {
+                      const res = await fetch("/api/auth/main/checkEmail", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          email: formData.email,
+                          usertype: userType,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.exists) {
+                        setMessage("An account with this email already exists. Please log in.");
+                      } else if (res.ok) {
+                        setStep("form");
+                      } else {
+                        setMessage(data.error || "Unable to verify email.");
+                      }
+                    } catch (err) {
+                      setMessage("Unable to verify email.");
+                    }
+                    setEmailCheckLoading(false);
+                  }}
                 >
-                  {loading ? "Registering..." : "Register"}
+                  {emailCheckLoading ? "Checking..." : "Continue"}
                 </button>
               </div>
-            </form>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
+              {message && (
+                <div className="text-sm text-red-600 text-center">{message}</div>
+              )}
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  // Company Information Screen
+  if (step === "form") {
+    return (
+      <SignupForm
+        formData={formData}
+        passwordError={passwordError}
+        loading={loading}
+        message={message}
+        onInputChange={handleInputChange}
+        onPhoneChange={(value) =>
+          setFormData((prev) => ({
+            ...prev,
+            phone: value,
+          }))
+        }
+        acceptedTerms={acceptedTerms}
+        onToggleTerms={() => setAcceptedTerms((prev) => !prev)}
+        onSubmit={handleSubmit}
+        onBack={() => setStep("selection")}
+      />
+    );
+  }
+
   if (step === "company") {
     return (
       <div className="h-full bg-white">
@@ -411,41 +432,447 @@ export default function SignUpPage() {
     );
   }
 
-  // Loading Screen
-  return (
-    <div className="h-3/4 bg-white">
-      <main className="h-full flex flex-col items-center justify-center">
-        <div className="w-full max-w-md text-center">
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-center mb-12">
-            <div className="flex items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
-                ✓
-              </div>
-              <div className="w-24 h-0.5 bg-black"></div>
-              <div className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full text-sm font-medium">
-                ✓
-              </div>
-            </div>
-          </div>
+  if (step === "categories") {
+    const categoryOptions = [
+      "Fashion",
+      "Technology",
+      "Food & Beverage",
+      "Health & Wellness",
+      "Travel",
+      "Other",
+    ];
 
-          <h1 className="text-2xl font-bold mb-2">
-            We're setting things up for you...
-          </h1>
-          <p className="text-sm text-gray-600 mb-12">
-            Hang tight! We're setting you up and getting things ready for you.
+    const selectedLabel =
+      selectedCategory === "Other" ? customCategory : selectedCategory;
+
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-2">
+              Select your business category
+            </h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Choose the category that best describes your business.
+            </p>
+
+            <div className="grid gap-3 mb-4">
+              {categoryOptions.map((option) => {
+                const isActive = option === selectedCategory;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(option);
+                      setMessage("");
+                      if (option !== "Other") {
+                        setCustomCategory("");
+                      }
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded border ${
+                      isActive ? "border-black bg-gray-50" : "border-gray-300"
+                    } hover:border-black transition-colors`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedCategory === "Other" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1.5">
+                  Specify your category
+                </label>
+                <input
+                  type="text"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  placeholder="e.g., Education"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("company")}
+                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selectedCategory) {
+                    setMessage("Please select a category.");
+                    return;
+                  }
+                  if (selectedCategory === "Other" && !customCategory.trim()) {
+                    setMessage("Please specify your category.");
+                    return;
+                  }
+                  setMessage("");
+                  if (userType === "business") {
+                    setStep("teamMode");
+                  } else {
+                    setStep("referral");
+                  }
+                }}
+                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+            {selectedLabel && (
+              <div className="text-center text-xs text-gray-600 mt-2">
+                Selected: {selectedLabel}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (step === "teamMode") {
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-2">Choose account type</h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you signing up as an independent or with a team?
+            </p>
+
+            <div className="grid gap-3 mb-4">
+              {[
+                { key: "independent", label: "Independent" },
+                { key: "team", label: "Team" },
+              ].map((opt) => {
+                const isActive = teamMode === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setTeamMode(opt.key as "independent" | "team");
+                      setMessage("");
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded border ${
+                      isActive ? "border-black bg-gray-50" : "border-gray-300"
+                    } hover:border-black transition-colors`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("categories")}
+                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!teamMode) {
+                    setMessage("Please select an account type.");
+                    return;
+                  }
+                  if (teamMode === "independent") {
+                    setTeamSize("independent");
+                    setStep("location");
+                  } else {
+                    setTeamSize("");
+                    setStep("teamSize");
+                  }
+                  setMessage("");
+                }}
+                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (step === "teamSize") {
+    const teamOptions = ["1-10", "11-50", "51-200", "200+"];
+
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-2">Select your team size</h1>
+            <p className="text-sm text-gray-600 mb-6">
+              This helps us tailor recommendations for your business.
+            </p>
+
+            <div className="grid gap-3 mb-4">
+              {teamOptions.map((option) => {
+                const isActive = option === teamSize;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setTeamSize(option);
+                      setMessage("");
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded border ${
+                      isActive ? "border-black bg-gray-50" : "border-gray-300"
+                    } hover:border-black transition-colors`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("categories")}
+                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!teamSize) {
+                    setMessage("Please select your team size.");
+                    return;
+                  }
+                  setMessage("");
+                  setStep("location");
+                }}
+                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+            {teamSize && (
+              <div className="text-center text-xs text-gray-600 mt-2">
+                Selected team size: {teamSize}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (step === "location") {
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-2">Business location</h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Where is your business primarily based?
+            </p>
+
+            <div className="mb-4">
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City, Country"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("teamSize")}
+                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!location.trim()) {
+                    setMessage("Please provide your business location.");
+                    return;
+                  }
+                  setMessage("");
+                  setStep("referral");
+                }}
+                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (step === "referral") {
+    const referralOptions = [
+      "Friend or colleague",
+      "Social media",
+      "Search engine",
+      "Event or webinar",
+      "App store",
+      "Other",
+    ];
+
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-2">How did you hear about us?</h1>
+            <p className="text-sm text-gray-600 mb-6">
+              This helps us understand how people find Kollab.
+            </p>
+
+            <div className="grid gap-3 mb-4">
+              {referralOptions.map((option) => {
+                const isActive = option === referralSource;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setReferralSource(option);
+                      setMessage("");
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded border ${
+                      isActive ? "border-black bg-gray-50" : "border-gray-300"
+                    } hover:border-black transition-colors`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1.5">
+                Or tell us more
+              </label>
+              <input
+                type="text"
+                value={referralSource}
+                onChange={(e) => setReferralSource(e.target.value)}
+                placeholder="e.g., Newsletter, Blog post"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setStep(userType === "business" ? "location" : "categories")
+                }
+                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalize}
+                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Finish"}
+              </button>
+            </div>
+            {message && (
+              <div className="text-center text-sm mt-4 text-red-600">
+                {message}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (completed) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="w-full max-w-md text-center space-y-6 px-4">
+          <div className="text-3xl font-bold">Your account is all set!</div>
+          <p className="text-gray-600">
+            You can now access your profile and start using Kollab.
           </p>
-
-          {/* Animated Loading Box */}
-          <div className="flex justify-center">
-            <div className="w-64 h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-              <div className="text-gray-400 text-lg animate-pulse">
-                LOADER ANIMATION HERE
-              </div>
-            </div>
-          </div>
+          <button
+            className="w-full py-3 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+            onClick={() => router.push("/business/profile")}
+          >
+            Continue
+          </button>
         </div>
-      </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen flex items-center justify-center bg-white">
+      <div className="text-center space-y-4">
+        <div className="flex justify-center gap-4">
+          <div className="w-3 h-3 rounded-full bg-black animate-pulse" />
+          <div className="w-3 h-3 rounded-full bg-gray-500 animate-pulse delay-150" />
+          <div className="w-3 h-3 rounded-full bg-gray-300 animate-pulse delay-300" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">Setting things up...</h1>
+          <p className="text-sm text-gray-600">
+            Hang tight! We're preparing your account.
+          </p>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
   );
 }

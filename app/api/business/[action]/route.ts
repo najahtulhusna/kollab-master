@@ -30,6 +30,8 @@ async function getBusinessDetails(req: NextRequest) {
       user_id: userId,
       name: "",
       job_position: "",
+      team_size: "",
+      location: "",
     };
     return NextResponse.json({ business: defaultBusiness });
   }
@@ -39,7 +41,7 @@ async function getBusinessDetails(req: NextRequest) {
 // ─── Save or Update Business ─────────────────────────────
 async function saveOrUpdateBusiness(body: any) {
   try {
-    const { id, user_id, name, job_position } = body;
+    const { id, user_id, name, job_position, team_size, location } = body;
     // Get session
     const session = await getServerSession(authOptions);
     console.log("Session in business GET route:", session);
@@ -61,7 +63,7 @@ async function saveOrUpdateBusiness(body: any) {
       // Try update by id
       const { data, error } = await supabase
         .from("business")
-        .update({ name, job_position })
+        .update({ name, job_position, team_size, location })
         .eq("id", id)
         .select()
         .single();
@@ -73,7 +75,7 @@ async function saveOrUpdateBusiness(body: any) {
       // Insert new
       const { data, error } = await supabase
         .from("business")
-        .insert([{ user_id, name, job_position }])
+        .insert([{ user_id, name, job_position, team_size, location }])
         .select()
         .single();
       if (error) {
