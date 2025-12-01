@@ -12,43 +12,45 @@ const AuthSelection: React.FC<AuthSelectionProps> = ({
   onNextStep,
 }) => {
   return (
-    <div className="h-3/4 bg-white flex justify-center">
-      <main className="flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-2xl">
-          <h1 className="text-3xl font-bold text-center mb-2">
-            Let's get you started!
-          </h1>
-          <p className="text-center text-gray-600 mb-12">
-            Choose how you'd like to sign up. Are you registering as a Business
-            or as an Influencer?
+    <main className="flex flex-col items-center justify-center gap-7">
+      <h1 className="text-2xl font-bold text-center mb-2">Create an account</h1>
+
+      <div className="flex flex-col gap-6">
+        <button
+          onClick={() => {
+            onSelect("business");
+            onNextStep("form");
+          }}
+          className=" text-left w-full p-4 border-2 border-gray-300 rounded-md hover:border-gray-400 hover:shadow-md transition-all"
+        >
+          <p className="text-sm font-medium">Kollab for Business</p>
+          <p className="text-sm text-[#737373]">
+            Manage campaigns. Work with creators. Grow your brand.
           </p>
+        </button>
 
-          <div className="flex flex-wrap justify-center gap-6">
-            <button
-              onClick={() => {
-                onSelect("business");
-                onNextStep("form");
-              }}
-              className="flex flex-col items-center justify-center w-40 h-40 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md transition-all"
-            >
-              <Briefcase className="w-12 h-12 mb-3" strokeWidth={1.5} />
-              <span className="text-sm font-medium">As Business</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onSelect("influencer");
-                onNextStep("form");
-              }}
-              className="flex flex-col items-center justify-center w-40 h-40 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md transition-all"
-            >
-              <Sparkles className="w-12 h-12 mb-3" strokeWidth={1.5} />
-              <span className="text-sm font-medium">As an Influencer</span>
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
+        <button
+          onClick={() => {
+            onSelect("influencer");
+            onNextStep("form");
+          }}
+          className=" text-left w-full p-4 border-2 border-gray-300 rounded-md hover:border-gray-400 hover:shadow-md transition-all"
+        >
+          <p className="text-sm font-medium">Kollab for Influencer</p>
+          <p className="text-sm text-[#737373]">
+            Get collabs. Build your profile. Earn more.
+          </p>
+        </button>
+      </div>
+      <div>
+        <p className="text-sm text-center ">
+          Already have an account?{" "}
+          <a href="/login" className="underline font-bold">
+            Log in
+          </a>
+        </p>
+      </div>
+    </main>
   );
 };
 

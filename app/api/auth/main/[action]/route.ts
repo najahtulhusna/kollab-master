@@ -87,8 +87,18 @@ async function verifyPassword(body: any) {
 
 async function updateProfile(body: any) {
   try {
-    const { userId, email, username, firstname, lastname, password, usertype } =
-      body;
+    const {
+      userId,
+      email,
+      username,
+      firstname,
+      lastname,
+      password,
+      usertype,
+      referral_source,
+      categories,
+      phone,
+    } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -138,6 +148,9 @@ async function updateProfile(body: any) {
     if (firstname) updateData.firstname = firstname;
     if (lastname) updateData.lastname = lastname;
     if (usertype) updateData.usertype = usertype;
+    if (referral_source) updateData.referral_source = referral_source;
+    if (categories) updateData.categories = categories;
+    if (phone) updateData.phone = phone;
 
     // Update user profile
     const { data: updatedUser, error: updateError } = await supabase
@@ -203,6 +216,9 @@ async function register(body: any) {
       firstname,
       lastname,
       usertype,
+      referral_source,
+      categories,
+      phone,
     } = body;
     const missingFields = [];
     if (!email) missingFields.push("email");
@@ -244,6 +260,9 @@ async function register(body: any) {
           firstname,
           lastname,
           usertype,
+          referral_source: referral_source || null,
+          categories: categories || null,
+          phone: phone || null,
         },
       ])
       .select()
@@ -382,6 +401,28 @@ async function updateAvatar(req: NextRequest) {
   }
 }
 
+async function checkEmail(body: any) {
+  try {
+    const { email, usertype } = body;
+    if (!email) {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+    const supabase = supabaseServer();
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .eq("usertype", usertype)
+      .single();
+
+    return NextResponse.json({ exists: !!existingUser });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Unexpected error" },
+      { status: 500 }
+    );
+  }
+}
 // ─── Router Dispatcher ──────────────────────
 export async function GET(req: NextRequest, context: any) {
   const action = context.params?.action;
@@ -410,6 +451,7 @@ export async function POST(req: NextRequest, context: any) {
     updateProfile,
     verifyPassword,
     forgotPassword,
+    checkEmail,
     // updateAvatar handled above
   };
   const fn = actions[action];

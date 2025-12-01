@@ -2,7 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
+import { GalleryVerticalEnd } from "lucide-react";
 export default function PublicLayout({
   children,
 }: {
@@ -10,37 +10,29 @@ export default function PublicLayout({
 }) {
   const pathname = usePathname();
   return (
-    <div className="h-screen w-screen flex flex-col">
-      <header className="flex items-center justify-between px-8 py-6 ">
-        <div className="text-3xl font-bold">
-          <img src="/logo-v1.svg" alt="Logo" />
+    <div className="grid min-h-svh lg:grid-cols-2">
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        <div className="flex justify-center gap-2 md:justify-end">
+          <a href="#" className="flex items-center gap-2 font-medium">
+            <img
+              src="/kollab-logo-no-background.png"
+              alt="Logo"
+              className="w-8"
+            />
+            Kollab
+          </a>
         </div>
-        {/* <div className="flex gap-4 items-center bg-white rounded shadow p-2 ">
-          <Link href="/login">
-            <button
-              className={`px-4 py-2 text-sm font-medium rounded cursor-pointer ${
-                pathname === "/login"
-                  ? "bg-black text-white"
-                  : "text-gray-700 hover:text-gray-900"
-              }`}
-            >
-              Login
-            </button>
-          </Link>
-          <Link href="/register">
-            <button
-              className={`px-4 py-2 text-sm font-medium rounded cursor-pointer ${
-                pathname === "/register"
-                  ? "bg-black text-white"
-                  : "text-gray-700 hover:text-gray-900"
-              }`}
-            >
-              Sign Up
-            </button>
-          </Link>
-        </div> */}
-      </header>
-      <main className="flex-1 h-[calc(100vh-100px)">{children}</main>
+        <div className="flex items-center justify-center">
+          <div className="w-full">{children}</div>
+        </div>
+      </div>
+      <div className="bg-muted relative hidden lg:block">
+        <img
+          src="login-wallpaper.jpg"
+          alt="Image"
+          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+        />
+      </div>
     </div>
   );
 }
