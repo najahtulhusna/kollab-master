@@ -1,11 +1,11 @@
 "use client";
+
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn, useSession } from "next-auth/react";
+
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
-import CompanyInformation, {
-  CompanyData,
-} from "@/components/CompanyInformation";
+import CompanyInformation, { CompanyData } from "@/components/CompanyInformation";
 import SignupForm from "@/components/signup-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ function SignUpContent() {
   const { update } = useSession();
   const router = useRouter();
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
-  const [step, setStep] = useState("selection"); // 'selection', 'form', 'company', 'categories', 'teamSize'
+  const [step, setStep] = useState("selection");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -42,7 +42,6 @@ function SignUpContent() {
   const [message, setMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("social") !== "true") return;
@@ -147,7 +146,6 @@ function SignUpContent() {
           return;
         }
       }
-      // Persist referral and categories to the user profile
       const finalReferralSource =
         referralSource === "Other" ? otherReferralText : referralSource;
       const referralRes = await fetch("/api/auth/main/updateProfile", {
@@ -163,7 +161,6 @@ function SignUpContent() {
         const referralData = await referralRes.json();
         console.warn("Referral save failed:", referralData?.error);
       }
-      setCompleted(true);
       setStep("completed");
     } catch (err) {
       setMessage("Failed to save business information.");
@@ -191,7 +188,6 @@ function SignUpContent() {
       return;
     }
 
-    // Check if session exists (social login)
     const existingSession = await getSession();
     if (existingSession && existingSession.user) {
       const res = await fetch("/api/auth/main/updateProfile", {
@@ -231,7 +227,6 @@ function SignUpContent() {
       return;
     }
 
-    // Normal registration flow
     const res = await fetch("/api/auth/main/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -426,9 +421,6 @@ function SignUpContent() {
       "Other",
     ];
 
-    const selectedLabel =
-      selectedCategory === "Other" ? customCategory : selectedCategory;
-
     return (
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center gap-7">
@@ -507,11 +499,6 @@ function SignUpContent() {
               {message}
             </div>
           )}
-          {/* {selectedLabel && (
-            <div className="text-center text-xs text-gray-600 mt-2">
-              Selected: {selectedLabel}
-            </div>
-          )} */}
         </main>
       </div>
     );
@@ -528,10 +515,7 @@ function SignUpContent() {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 w-full">
-            {[
-              { key: "independent", label: "I’m an independent" },
-              { key: "team", label: "I have a team" },
-            ].map((opt) => {
+            {[{ key: "independent", label: "I'm an independent" }, { key: "team", label: "I have a team" }].map((opt) => {
               const isActive = teamMode === opt.key;
               return (
                 <button
@@ -588,7 +572,7 @@ function SignUpContent() {
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center gap-7">
           <div className="flex flex-col gap-2 text-center">
-            <h1 className="text-2xl font-bold ">What’s your team size</h1>
+            <h1 className="text-2xl font-bold ">What's your team size</h1>
           </div>
 
           <div className="grid gap-3 mb-4 w-full">
@@ -656,7 +640,7 @@ function SignUpContent() {
         <main className="flex flex-col items-center justify-center gap-7">
           <div className="flex flex-col gap-2 text-center">
             <h1 className="text-2xl font-bold ">
-              Where’s your business located?
+              Where's your business located?
             </h1>
           </div>
           <div className="w-full">
@@ -717,85 +701,83 @@ function SignUpContent() {
 
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">
-              How did you hear about us?
-            </h1>
-            <p className="text-sm text-gray-600 mb-6">
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">How did you hear about us?</h1>
+            <p className="text-sm text-[#737373]">
               This helps us understand how people find Kollab.
             </p>
-
-            <div className="space-y-3 mb-4">
-              {referralOptions.map((option) => {
-                const isChecked = option === referralSource;
-                return (
-                  <div key={option} className="flex items-center gap-3">
-                    <Checkbox
-                      id={`referral-${option}`}
-                      checked={isChecked}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setReferralSource(option);
-                          if (option !== "Other") {
-                            setOtherReferralText("");
-                          }
-                          setMessage("");
-                        }
-                      }}
-                      className="data-[state=checked]:bg-black data-[state=checked]:border-black"
-                    />
-                    <label
-                      htmlFor={`referral-${option}`}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      {option}
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-
-            {referralSource === "Other" && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1.5">
-                  Please specify
-                </label>
-                <Input
-                  type="text"
-                  value={otherReferralText}
-                  onChange={(e) => setOtherReferralText(e.target.value)}
-                  placeholder="Enter your answer here"
-                  className="w-full "
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-4 pt-2">
-              <Button
-                type="button"
-                onClick={() =>
-                  setStep(userType === "business" ? "location" : "categories")
-                }
-                className="w-full bg-white text-black border"
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={handleFinalize}
-                className="w-full py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-                disabled={loading}
-              >
-                {loading ? "Saving..." : "Create Account"}
-              </Button>
-            </div>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
           </div>
+
+          <div className="space-y-3 mb-4 w-full">
+            {referralOptions.map((option) => {
+              const isChecked = option === referralSource;
+              return (
+                <div key={option} className="flex items-center gap-3">
+                  <Checkbox
+                    id={`referral-${option}`}
+                    checked={isChecked}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setReferralSource(option);
+                        if (option !== "Other") {
+                          setOtherReferralText("");
+                        }
+                        setMessage("");
+                      }
+                    }}
+                    className="data-[state=checked]:bg-black data-[state=checked]:border-black"
+                  />
+                  <label
+                    htmlFor={`referral-${option}`}
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    {option}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+
+          {referralSource === "Other" && (
+            <div className="w-full">
+              <label className="block text-sm font-medium mb-1.5">
+                Please specify
+              </label>
+              <Input
+                type="text"
+                value={otherReferralText}
+                onChange={(e) => setOtherReferralText(e.target.value)}
+                placeholder="Enter your answer here"
+                className="w-full "
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4 w-full">
+            <Button
+              type="button"
+              onClick={() =>
+                setStep(userType === "business" ? "location" : "categories")
+              }
+              className="w-full bg-white text-black border"
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              onClick={handleFinalize}
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Create Account"}
+            </Button>
+          </div>
+          {message && (
+            <div className="text-center text-sm mt-4 text-red-600">
+              {message}
+            </div>
+          )}
         </main>
       </div>
     );
@@ -809,7 +791,7 @@ function SignUpContent() {
           <div className="flex flex-col gap-2 text-center">
             <h1 className="text-2xl font-bold ">Your business is set up!</h1>
             <p className="text-sm text-[#737373]">
-              Let’s get your first campaign rolling.
+              Let's get your first campaign rolling.
             </p>
           </div>
           <div className="w-full ">
@@ -817,7 +799,7 @@ function SignUpContent() {
               className="w-full "
               onClick={() => router.push("/business/profile")}
             >
-              Let’s go!
+              Let's go!
             </Button>
           </div>
         </main>
@@ -833,7 +815,7 @@ function SignUpContent() {
           <div className="flex flex-col gap-2 text-center">
             <h1 className="text-2xl font-bold ">Your profile is set up!</h1>
             <p className="text-sm text-[#737373]">
-              Let’s get you your first collab.
+              Let's get you your first collab.
             </p>
           </div>
           <div className="w-full ">
@@ -841,7 +823,7 @@ function SignUpContent() {
               className="w-full "
               onClick={() => router.push("/business/profile")}
             >
-              Let’s go!
+              Let's go!
             </Button>
           </div>
         </main>
