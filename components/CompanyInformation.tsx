@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { Building, Briefcase } from "lucide-react";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 
 export interface CompanyData {
   companyName: string;
@@ -45,61 +46,58 @@ export default function CompanyInformation({
   };
 
   return (
-    <div className={`w-full max-w-md ${className}`}>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Company Information</h1>
-        <p className="text-sm text-gray-600">
-          Almost there! Please provide your company details to complete your
-          profile.
-        </p>
-      </div>
-
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Company Name <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              name="companyName"
-              placeholder="Company Name"
-              value={formData.companyName}
-              onChange={handleInputChange}
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-base"
-              required
-            />
-          </div>
+    <div className="h-full bg-white">
+      <main className="flex flex-col items-center justify-center gap-7">
+        <div className="flex flex-col gap-2 text-center">
+          <h1 className="text-2xl font-bold ">What’s your business name?</h1>
+          <p className="text-sm text-[#737373]">
+            This is the brand name your clients will see. Your billing and legal
+            name can be added later.
+          </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Job Position <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              name="jobPosition"
-              placeholder="Job Position"
-              value={formData.jobPosition}
-              onChange={handleInputChange}
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-base"
-              required
-            />
+        <form className="w-full space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Bussiness Name <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Input
+                type="text"
+                name="companyName"
+                placeholder="Enter your business name"
+                value={formData.companyName}
+                onChange={handleInputChange}
+                className=""
+                required
+              />
+            </div>
           </div>
-        </div>
 
-        {onSubmit && (
-          <button
-            type="submit"
-            className="w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-          >
-            Continue
-          </button>
-        )}
-      </form>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Job Position <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Input
+                type="text"
+                name="jobPosition"
+                placeholder="Job Position"
+                value={formData.jobPosition}
+                onChange={handleInputChange}
+                className=""
+                required
+              />
+            </div>
+          </div>
+
+          {onSubmit && (
+            <Button type="submit" className="w-full ">
+              Continue
+            </Button>
+          )}
+        </form>
+      </main>
     </div>
   );
 }

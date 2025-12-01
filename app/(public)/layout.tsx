@@ -22,8 +22,8 @@ export default function PublicLayout({
             Kollab
           </a>
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">{children}</div>
+        <div className="flex items-center justify-center">
+          <div className="w-full">{children}</div>
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block">

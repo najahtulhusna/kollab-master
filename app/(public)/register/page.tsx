@@ -7,6 +7,9 @@ import CompanyInformation, {
   CompanyData,
 } from "@/components/CompanyInformation";
 import SignupForm from "@/components/signup-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function SignUpContent() {
   const searchParams = useSearchParams();
@@ -33,6 +36,7 @@ function SignUpContent() {
   const [teamMode, setTeamMode] = useState<"independent" | "team" | "">("");
   const [location, setLocation] = useState("");
   const [referralSource, setReferralSource] = useState("");
+  const [otherReferralText, setOtherReferralText] = useState("");
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -112,6 +116,11 @@ function SignUpContent() {
         setLoading(false);
         return;
       }
+      if (referralSource === "Other" && !otherReferralText.trim()) {
+        setMessage("Please specify how you heard about us.");
+        setLoading(false);
+        return;
+      }
       const session = await getSession();
       const userId = session?.user?.id;
       if (!userId) {
@@ -139,12 +148,14 @@ function SignUpContent() {
         }
       }
       // Persist referral and categories to the user profile
+      const finalReferralSource =
+        referralSource === "Other" ? otherReferralText : referralSource;
       const referralRes = await fetch("/api/auth/main/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          referral_source: referralSource,
+          referral_source: finalReferralSource,
           categories: categoryValue,
         }),
       });
@@ -274,25 +285,6 @@ function SignUpContent() {
     setLoading(false);
   };
 
-  if (completed || step === "completed") {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="w-full max-w-md text-center space-y-6 px-4">
-          <div className="text-3xl font-bold">Your account is all set!</div>
-          <p className="text-gray-600">
-            You can now access your profile and start using Kollab.
-          </p>
-          <button
-            className="w-full py-3 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-            onClick={() => router.push("/business/profile")}
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (step === "selection") {
     return (
       <AuthSelection
@@ -308,80 +300,84 @@ function SignUpContent() {
   if (step === "emailCheck") {
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">Verify your email</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Enter your email to check if an account already exists.
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold text-center">
+              Kollab for Business
+            </h1>
+            <p className="text-sm text-[#737373]">
+              Create an account or login to manage your business.
             </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      email: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="you@example.com"
-                />
-              </div>
+          </div>
 
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-                  onClick={() => setStep("selection")}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-                  disabled={emailCheckLoading || !formData.email || !userType}
-                  onClick={async () => {
-                    if (!formData.email || !userType) {
-                      setMessage("Please enter email and select account type.");
-                      return;
-                    }
-                    setMessage("");
-                    setEmailCheckLoading(true);
-                    try {
-                      const res = await fetch("/api/auth/main/checkEmail", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          email: formData.email,
-                          usertype: userType,
-                        }),
-                      });
-                      const data = await res.json();
-                      if (res.ok && data.exists) {
-                        setMessage("An account with this email already exists. Please log in.");
-                      } else if (res.ok) {
-                        setStep("form");
-                      } else {
-                        setMessage(data.error || "Unable to verify email.");
-                      }
-                    } catch (err) {
-                      setMessage("Unable to verify email.");
-                    }
-                    setEmailCheckLoading(false);
-                  }}
-                >
-                  {emailCheckLoading ? "Checking..." : "Continue"}
-                </button>
-              </div>
-              {message && (
-                <div className="text-sm text-red-600 text-center">{message}</div>
-              )}
+          <div className="w-full space-y-4 text-left">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
+                }
+                className=""
+                placeholder="you@example.com"
+              />
             </div>
+
+            <div className=" flex flex-col gap-4">
+              <Button
+                type="button"
+                className="w-full bg-white text-black border"
+                onClick={() => setStep("selection")}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={async () => {
+                  if (!formData.email || !userType) {
+                    setMessage("Please enter email and select account type.");
+                    return;
+                  }
+                  setMessage("");
+                  setEmailCheckLoading(true);
+                  try {
+                    const res = await fetch("/api/auth/main/checkEmail", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        email: formData.email,
+                        usertype: userType,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.exists) {
+                      setMessage(
+                        "An account with this email already exists. Please log in."
+                      );
+                    } else if (res.ok) {
+                      setStep("form");
+                    } else {
+                      setMessage(data.error || "Unable to verify email.");
+                    }
+                  } catch (err) {
+                    setMessage("Unable to verify email.");
+                  }
+                  setEmailCheckLoading(false);
+                }}
+              >
+                {emailCheckLoading ? "Checking..." : "Continue"}
+              </Button>
+            </div>
+            {message && (
+              <div className="text-sm text-red-600 text-center">{message}</div>
+            )}
           </div>
         </main>
       </div>
@@ -405,30 +401,18 @@ function SignUpContent() {
         acceptedTerms={acceptedTerms}
         onToggleTerms={() => setAcceptedTerms((prev) => !prev)}
         onSubmit={handleSubmit}
-        onBack={() => setStep("selection")}
+        onBack={() => setStep("emailCheck")}
       />
     );
   }
 
   if (step === "company") {
     return (
-      <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <CompanyInformation
-              onDataChange={handleCompanyDataChange}
-              onSubmit={handleCompanySubmit}
-              initialData={companyData}
-            />
-
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
+      <CompanyInformation
+        onDataChange={handleCompanyDataChange}
+        onSubmit={handleCompanySubmit}
+        initialData={companyData}
+      />
     );
   }
 
@@ -447,96 +431,87 @@ function SignUpContent() {
 
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">
-              Select your business category
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">
+              Select categories that best describe your business
             </h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Choose the category that best describes your business.
+            <p className="text-sm text-[#737373]">
+              Choose your primary and up to 3 related service type
             </p>
-
-            <div className="grid gap-3 mb-4">
-              {categoryOptions.map((option) => {
-                const isActive = option === selectedCategory;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategory(option);
-                      setMessage("");
-                      if (option !== "Other") {
-                        setCustomCategory("");
-                      }
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded border ${
-                      isActive ? "border-black bg-gray-50" : "border-gray-300"
-                    } hover:border-black transition-colors`}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedCategory === "Other" && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1.5">
-                  Specify your category
-                </label>
-                <input
-                  type="text"
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="e.g., Education"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep("company")}
-                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!selectedCategory) {
-                    setMessage("Please select a category.");
-                    return;
-                  }
-                  if (selectedCategory === "Other" && !customCategory.trim()) {
-                    setMessage("Please specify your category.");
-                    return;
-                  }
-                  setMessage("");
-                  if (userType === "business") {
-                    setStep("teamMode");
-                  } else {
-                    setStep("referral");
-                  }
-                }}
-                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
-            {selectedLabel && (
-              <div className="text-center text-xs text-gray-600 mt-2">
-                Selected: {selectedLabel}
-              </div>
-            )}
           </div>
+
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {categoryOptions.map((option) => {
+              const isActive = option === selectedCategory;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(option);
+                    setMessage("");
+                    if (option !== "Other") {
+                      setCustomCategory("");
+                    }
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded border ${
+                    isActive ? "border-black bg-gray-50" : "border-gray-300"
+                  } hover:border-black transition-colors`}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedCategory === "Other" && (
+            <div className="w-full">
+              <label className="block text-sm font-medium mb-1.5">
+                Other service type
+              </label>
+              <Input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className=""
+                placeholder="Enter service type"
+              />
+            </div>
+          )}
+
+          <Button
+            type="button"
+            onClick={() => {
+              if (!selectedCategory) {
+                setMessage("Please select a category.");
+                return;
+              }
+              if (selectedCategory === "Other" && !customCategory.trim()) {
+                setMessage("Please specify your category.");
+                return;
+              }
+              setMessage("");
+              if (userType === "business") {
+                setStep("teamMode");
+              } else {
+                setStep("referral");
+              }
+            }}
+            className="w-full"
+          >
+            Continue
+          </Button>
+          {message && (
+            <div className="text-center text-sm mt-4 text-red-600">
+              {message}
+            </div>
+          )}
+          {/* {selectedLabel && (
+            <div className="text-center text-xs text-gray-600 mt-2">
+              Selected: {selectedLabel}
+            </div>
+          )} */}
         </main>
       </div>
     );
@@ -545,144 +520,131 @@ function SignUpContent() {
   if (step === "teamMode") {
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">Choose account type</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you signing up as an independent or with a team?
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">Select account type</h1>
+            <p className="text-sm text-[#737373]">
+              This will help us set up your account correctly
             </p>
-
-            <div className="grid gap-3 mb-4">
-              {[
-                { key: "independent", label: "Independent" },
-                { key: "team", label: "Team" },
-              ].map((opt) => {
-                const isActive = teamMode === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => {
-                      setTeamMode(opt.key as "independent" | "team");
-                      setMessage("");
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded border ${
-                      isActive ? "border-black bg-gray-50" : "border-gray-300"
-                    } hover:border-black transition-colors`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep("categories")}
-                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!teamMode) {
-                    setMessage("Please select an account type.");
-                    return;
-                  }
-                  if (teamMode === "independent") {
-                    setTeamSize("independent");
-                    setStep("location");
-                  } else {
-                    setTeamSize("");
-                    setStep("teamSize");
-                  }
-                  setMessage("");
-                }}
-                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
           </div>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {[
+              { key: "independent", label: "I’m an independent" },
+              { key: "team", label: "I have a team" },
+            ].map((opt) => {
+              const isActive = teamMode === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    setTeamMode(opt.key as "independent" | "team");
+                    setMessage("");
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded border ${
+                    isActive ? "border-black bg-gray-50" : "border-gray-300"
+                  } hover:border-black transition-colors`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => {
+              if (!teamMode) {
+                setMessage("Please select an account type.");
+                return;
+              }
+              if (teamMode === "independent") {
+                setTeamSize("independent");
+                setStep("location");
+              } else {
+                setTeamSize("");
+                setStep("teamSize");
+              }
+              setMessage("");
+            }}
+            className="w-full"
+          >
+            Continue
+          </Button>
+          {message && (
+            <div className="text-center text-sm mt-4 text-red-600">
+              {message}
+            </div>
+          )}
         </main>
       </div>
     );
   }
 
   if (step === "teamSize") {
-    const teamOptions = ["1-10", "11-50", "51-200", "200+"];
+    const teamOptions = ["2-5 people", "6-10 people", "11+ people"];
 
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">Select your team size</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              This helps us tailor recommendations for your business.
-            </p>
-
-            <div className="grid gap-3 mb-4">
-              {teamOptions.map((option) => {
-                const isActive = option === teamSize;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setTeamSize(option);
-                      setMessage("");
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded border ${
-                      isActive ? "border-black bg-gray-50" : "border-gray-300"
-                    } hover:border-black transition-colors`}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep("categories")}
-                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!teamSize) {
-                    setMessage("Please select your team size.");
-                    return;
-                  }
-                  setMessage("");
-                  setStep("location");
-                }}
-                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
-            {teamSize && (
-              <div className="text-center text-xs text-gray-600 mt-2">
-                Selected team size: {teamSize}
-              </div>
-            )}
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">What’s your team size</h1>
           </div>
+
+          <div className="grid gap-3 mb-4 w-full">
+            {teamOptions.map((option) => {
+              const isActive = option === teamSize;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setTeamSize(option);
+                    setMessage("");
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded border ${
+                    isActive ? "border-black bg-gray-50" : "border-gray-300"
+                  } hover:border-black transition-colors`}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-4 w-full">
+            <Button
+              type="button"
+              onClick={() => setStep("teamMode")}
+              className="w-full bg-white text-black border"
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!teamSize) {
+                  setMessage("Please select your team size.");
+                  return;
+                }
+                setMessage("");
+                setStep("location");
+              }}
+              className="w-full"
+            >
+              Continue
+            </Button>
+          </div>
+          {message && (
+            <div className="text-center text-sm mt-4 text-red-600">
+              {message}
+            </div>
+          )}
+          {teamSize && (
+            <div className="text-center text-xs text-gray-600 mt-2">
+              Selected team size: {teamSize}
+            </div>
+          )}
         </main>
       </div>
     );
@@ -691,52 +653,53 @@ function SignUpContent() {
   if (step === "location") {
     return (
       <div className="h-full bg-white">
-        <main className="flex flex-col items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">Business location</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Where is your business primarily based?
-            </p>
-
-            <div className="mb-4">
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="City, Country"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-              />
-            </div>
-
-            <div className="flex gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep("teamSize")}
-                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!location.trim()) {
-                    setMessage("Please provide your business location.");
-                    return;
-                  }
-                  setMessage("");
-                  setStep("referral");
-                }}
-                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-            {message && (
-              <div className="text-center text-sm mt-4 text-red-600">
-                {message}
-              </div>
-            )}
+        <main className="flex flex-col items-center justify-center gap-7">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">
+              Where’s your business located?
+            </h1>
           </div>
+          <div className="w-full">
+            <label className="block text-sm font-medium mb-2">
+              Business Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Enter your business location"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+            />
+          </div>
+
+          <div className="flex flex-col gap-4 w-full">
+            <Button
+              type="button"
+              onClick={() => setStep("teamMode")}
+              className="w-full bg-white text-black border"
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!location.trim()) {
+                  setMessage("Please provide your business location.");
+                  return;
+                }
+                setMessage("");
+                setStep("referral");
+              }}
+              className="w-full"
+            >
+              Continue
+            </Button>
+          </div>
+          {message && (
+            <div className="text-center text-sm mt-4 text-red-600">
+              {message}
+            </div>
+          )}
         </main>
       </div>
     );
@@ -756,63 +719,76 @@ function SignUpContent() {
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-2">How did you hear about us?</h1>
+            <h1 className="text-2xl font-bold mb-2">
+              How did you hear about us?
+            </h1>
             <p className="text-sm text-gray-600 mb-6">
               This helps us understand how people find Kollab.
             </p>
 
-            <div className="grid gap-3 mb-4">
+            <div className="space-y-3 mb-4">
               {referralOptions.map((option) => {
-                const isActive = option === referralSource;
+                const isChecked = option === referralSource;
                 return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setReferralSource(option);
-                      setMessage("");
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded border ${
-                      isActive ? "border-black bg-gray-50" : "border-gray-300"
-                    } hover:border-black transition-colors`}
-                  >
-                    {option}
-                  </button>
+                  <div key={option} className="flex items-center gap-3">
+                    <Checkbox
+                      id={`referral-${option}`}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setReferralSource(option);
+                          if (option !== "Other") {
+                            setOtherReferralText("");
+                          }
+                          setMessage("");
+                        }
+                      }}
+                      className="data-[state=checked]:bg-black data-[state=checked]:border-black"
+                    />
+                    <label
+                      htmlFor={`referral-${option}`}
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      {option}
+                    </label>
+                  </div>
                 );
               })}
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1.5">
-                Or tell us more
-              </label>
-              <input
-                type="text"
-                value={referralSource}
-                onChange={(e) => setReferralSource(e.target.value)}
-                placeholder="e.g., Newsletter, Blog post"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-              />
-            </div>
+            {referralSource === "Other" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1.5">
+                  Please specify
+                </label>
+                <Input
+                  type="text"
+                  value={otherReferralText}
+                  onChange={(e) => setOtherReferralText(e.target.value)}
+                  placeholder="Enter your answer here"
+                  className="w-full "
+                />
+              </div>
+            )}
 
-            <div className="flex gap-4 pt-2">
-              <button
+            <div className="flex flex-col gap-4 pt-2">
+              <Button
                 type="button"
                 onClick={() =>
                   setStep(userType === "business" ? "location" : "categories")
                 }
-                className="flex-1 py-2.5 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors"
+                className="w-full bg-white text-black border"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleFinalize}
-                className="flex-1 py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
+                className="w-full py-2.5 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
                 disabled={loading}
               >
-                {loading ? "Saving..." : "Finish"}
-              </button>
+                {loading ? "Saving..." : "Create Account"}
+              </Button>
             </div>
             {message && (
               <div className="text-center text-sm mt-4 text-red-600">
@@ -825,21 +801,50 @@ function SignUpContent() {
     );
   }
 
-  if (completed) {
+  if (step === "completed" && userType === "business") {
     return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="w-full max-w-md text-center space-y-6 px-4">
-          <div className="text-3xl font-bold">Your account is all set!</div>
-          <p className="text-gray-600">
-            You can now access your profile and start using Kollab.
-          </p>
-          <button
-            className="w-full py-3 bg-black text-white rounded font-medium hover:bg-gray-800 transition-colors"
-            onClick={() => router.push("/business/profile")}
-          >
-            Continue
-          </button>
-        </div>
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center gap-7">
+          <img src="/account-setup.png" alt="Logo" className="" />
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">Your business is set up!</h1>
+            <p className="text-sm text-[#737373]">
+              Let’s get your first campaign rolling.
+            </p>
+          </div>
+          <div className="w-full ">
+            <Button
+              className="w-full "
+              onClick={() => router.push("/business/profile")}
+            >
+              Let’s go!
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (step === "completed" && userType === "influencer") {
+    return (
+      <div className="h-full bg-white">
+        <main className="flex flex-col items-center justify-center gap-7">
+          <img src="/account-setup.png" alt="Logo" className="" />
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-2xl font-bold ">Your profile is set up!</h1>
+            <p className="text-sm text-[#737373]">
+              Let’s get you your first collab.
+            </p>
+          </div>
+          <div className="w-full ">
+            <Button
+              className="w-full "
+              onClick={() => router.push("/business/profile")}
+            >
+              Let’s go!
+            </Button>
+          </div>
+        </main>
       </div>
     );
   }
