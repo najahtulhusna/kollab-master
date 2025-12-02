@@ -10,6 +10,7 @@ import SignupForm from "@/components/signup-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Facebook, Instagram, RectangleGoggles } from "lucide-react";
 
 function SignUpContent() {
   const searchParams = useSearchParams();
@@ -369,6 +370,35 @@ function SignUpContent() {
               >
                 {emailCheckLoading ? "Checking..." : "Continue"}
               </Button>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("google", { callbackUrl: "/api/auth/main/socialredirect" })
+                }
+              >
+                <RectangleGoggles className="w-5 h-5" /> Sign in with Google
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("facebook", { callbackUrl: "/api/auth/main/socialredirect" })
+                }
+              >
+                <Facebook className="w-5 h-5" /> Sign in with Facebook
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("instagram", { callbackUrl: "/api/auth/main/socialredirect" })
+                }
+              >
+                <Instagram className="w-5 h-5" /> Sign in with Instagram
+              </button>
             </div>
             {message && (
               <div className="text-sm text-red-600 text-center">{message}</div>

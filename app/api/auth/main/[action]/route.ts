@@ -21,11 +21,11 @@ async function socialRedirect(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: user, error } = await supabase
     .from("users")
-    .select("username")
+    .select("username, usertype")
     .eq("email", email)
     .single();
-  if (!error && user && user.username) {
-    // Username exists, go to profile page
+  if (!error && user && user.usertype) {
+    // Profile has a usertype, treat as complete and go to profile page
     return NextResponse.redirect(new URL("/business/profile", req.url));
   }
   // Otherwise, go to signup page with social param

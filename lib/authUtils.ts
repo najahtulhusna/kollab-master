@@ -23,7 +23,7 @@ export function AuthUtils(): Adapter {
           firstname: firstname,
           lastname: lastname,
           avatar_url: user.image ?? null,
-          usertype: user.usertype || 'influencer', // Default to influencer if not specified
+          // Leave usertype unset for social signups; registration flow will collect it.
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
