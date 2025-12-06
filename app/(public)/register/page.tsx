@@ -6,7 +6,9 @@ import { getSession, signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
-import CompanyInformation, { CompanyData } from "@/components/CompanyInformation";
+import CompanyInformation, {
+  CompanyData,
+} from "@/components/CompanyInformation";
 import SignupForm from "@/components/signup-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,18 @@ function SignUpContent() {
           firstName: session.user?.firstname || "",
           email: session.user?.email || "",
         }));
+
+        // Get usertype from URL parameter if it exists
+        const usertypeParam = searchParams.get(
+          "usertype"
+        ) as AuthSelectionType | null;
+        if (
+          usertypeParam &&
+          (usertypeParam === "business" || usertypeParam === "influencer")
+        ) {
+          setUserType(usertypeParam);
+        }
+
         setStep("form");
       }
       console.log("Session info for social registration:", session);
@@ -323,13 +337,13 @@ function SignUpContent() {
             </div>
 
             <div className=" flex flex-col gap-4">
-              <Button
+              {/* <Button
                 type="button"
                 className="w-full bg-white text-black border"
                 onClick={() => setStep("selection")}
               >
                 Back
-              </Button>
+              </Button> */}
               <Button
                 type="button"
                 className="w-full"
@@ -367,12 +381,19 @@ function SignUpContent() {
                 {emailCheckLoading ? "Checking..." : "Continue"}
               </Button>
             </div>
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span className="text-sm text-[#737373]">OR CONTINUE WITH</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
             <div className="flex flex-col gap-2 pt-2">
               <button
                 type="button"
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
-                  signIn("google", { callbackUrl: "/api/auth/main/socialredirect" })
+                  signIn("google", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
                 }
               >
                 <RectangleGoggles className="w-5 h-5" /> Sign in with Google
@@ -381,7 +402,9 @@ function SignUpContent() {
                 type="button"
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
-                  signIn("facebook", { callbackUrl: "/api/auth/main/socialredirect" })
+                  signIn("facebook", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
                 }
               >
                 <Facebook className="w-5 h-5" /> Sign in with Facebook
@@ -390,12 +413,14 @@ function SignUpContent() {
                 type="button"
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
-                  signIn("instagram", { callbackUrl: "/api/auth/main/socialredirect" })
+                  signIn("instagram", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
                 }
-            >
-              <Instagram className="w-5 h-5" /> Sign in with Instagram
-            </button>
-          </div>
+              >
+                <Instagram className="w-5 h-5" /> Sign in with Instagram
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -530,7 +555,10 @@ function SignUpContent() {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 w-full">
-            {[{ key: "independent", label: "I'm an independent" }, { key: "team", label: "I have a team" }].map((opt) => {
+            {[
+              { key: "independent", label: "I'm an independent" },
+              { key: "team", label: "I have a team" },
+            ].map((opt) => {
               const isActive = teamMode === opt.key;
               return (
                 <button
@@ -604,13 +632,13 @@ function SignUpContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() => setStep("teamMode")}
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={() => {
@@ -658,13 +686,13 @@ function SignUpContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() => setStep("teamMode")}
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={() => {
@@ -749,7 +777,7 @@ function SignUpContent() {
           )}
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() =>
                 setStep(userType === "business" ? "location" : "categories")
@@ -757,7 +785,7 @@ function SignUpContent() {
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={handleFinalize}

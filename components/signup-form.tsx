@@ -192,13 +192,13 @@ export function SignupForm({
           </div>
 
           <div className="flex flex-col gap-4">
-            <Button
+            {/* <Button
               type="button"
               onClick={onBack}
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Registering..." : "Continue"}
             </Button>

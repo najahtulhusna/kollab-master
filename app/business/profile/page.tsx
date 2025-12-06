@@ -1,5 +1,5 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,19 @@ import {
   AlertCircle,
   Lock,
   Camera,
+  Phone,
+  Briefcase,
+  Tag,
+  UserCheck,
+  Calendar,
 } from "lucide-react";
 import BusinessProfile from "@/components/BusinessProfile";
 import { toast } from "sonner";
 
 export default function BusinessProfilePage() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
+  const [user, setUser] = useState<any>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -42,7 +49,41 @@ export default function BusinessProfilePage() {
     password: "",
   });
 
-  if (status === "loading") {
+  // Get userId from session
+  const userId = (session?.user as any)?.id;
+
+  // Fetch user profile data using API
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!userId) return;
+
+      setIsLoadingProfile(true);
+      try {
+        const response = await fetch("/api/auth/main/getUserProfile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.user) {
+          setUser(data.user);
+        } else {
+          toast.error(data.error || "Failed to load profile");
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+        toast.error("Failed to load profile");
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [userId]);
+
+  if (status === "loading" || isLoadingProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -62,16 +103,24 @@ export default function BusinessProfilePage() {
     );
   }
 
-  const { user } = session;
-  const userId = (user as any)?.id;
-  const usertype = (user as any)?.usertype;
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">Failed to load user profile.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const usertype = user?.usertype;
 
   const handleEdit = () => {
     setFormData({
-      username: (user as any)?.username || "",
+      username: user?.username || "",
       email: user?.email || "",
-      firstname: (user as any)?.firstname || "",
-      lastname: (user as any)?.lastname || "",
+      firstname: user?.firstname || "",
+      lastname: user?.lastname || "",
       password: "",
     });
     setIsEditing(true);
@@ -108,10 +157,17 @@ export default function BusinessProfilePage() {
       });
       const data = await res.json();
       if (res.ok && data.avatar_url) {
-        await update({
-          ...session?.user,
-          image: data.avatar_url,
+        // Refresh user profile data
+        const profileResponse = await fetch("/api/auth/main/getUserProfile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
         });
+        const profileData = await profileResponse.json();
+        if (profileResponse.ok && profileData.user) {
+          setUser(profileData.user);
+          toast.success("Avatar updated successfully!");
+        }
       } else {
         toast.error(data.error || "Failed to update avatar");
       }
@@ -186,14 +242,16 @@ export default function BusinessProfilePage() {
         return;
       }
 
-      // Update session with new data
-      await update({
-        ...session?.user,
-        username: formData.username,
-        email: formData.email,
-        firstname: formData.firstname,
-        lastname: formData.lastname,
+      // Refresh user profile data
+      const profileResponse = await fetch("/api/auth/main/getUserProfile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
       });
+      const profileData = await profileResponse.json();
+      if (profileResponse.ok && profileData.user) {
+        setUser(profileData.user);
+      }
 
       setIsEditing(false);
       setCurrentPassword("");
@@ -230,9 +288,9 @@ export default function BusinessProfilePage() {
                   disabled={isUploadingAvatar}
                   className="w-24 h-24 rounded-full border-4 border-background bg-muted overflow-hidden cursor-pointer hover:opacity-90 transition-opacity disabled:cursor-not-allowed"
                 >
-                  {user?.image ? (
+                  {user?.avatar_url ? (
                     <img
-                      src={user?.image || ""}
+                      src={user?.avatar_url || ""}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
@@ -264,9 +322,7 @@ export default function BusinessProfilePage() {
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-semibold">
-                      {(user as any)?.firstname +
-                        " " +
-                        (user as any)?.lastname || "No name"}
+                      {user?.firstname + " " + user?.lastname || "No name"}
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
                       {user?.email}
@@ -289,7 +345,7 @@ export default function BusinessProfilePage() {
                         Username
                       </p>
                       <p className="text-sm font-medium mt-0.5">
-                        {(user as any)?.username || "Not set"}
+                        {user?.username || "Not set"}
                       </p>
                     </div>
                   </div>
@@ -304,6 +360,85 @@ export default function BusinessProfilePage() {
                       </p>
                       <p className="text-sm font-medium mt-0.5">
                         {user?.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Phone
+                      </p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {user?.phone || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <Briefcase className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        User Type
+                      </p>
+                      <p className="text-sm font-medium mt-0.5 capitalize">
+                        {user?.usertype || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <Tag className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Categories
+                      </p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {user?.categories || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <UserCheck className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Referral Source
+                      </p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {user?.referral_source || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Member Since
+                      </p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {user?.created_at
+                          ? new Date(user.created_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }
+                            )
+                          : "Not available"}
                       </p>
                     </div>
                   </div>
