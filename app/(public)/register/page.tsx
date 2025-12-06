@@ -3,13 +3,17 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn, useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
-import CompanyInformation, { CompanyData } from "@/components/CompanyInformation";
+import CompanyInformation, {
+  CompanyData,
+} from "@/components/CompanyInformation";
 import SignupForm from "@/components/signup-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Facebook, Instagram, RectangleGoggles } from "lucide-react";
 
 function SignUpContent() {
   const searchParams = useSearchParams();
@@ -39,7 +43,6 @@ function SignUpContent() {
   const [otherReferralText, setOtherReferralText] = useState("");
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
@@ -52,6 +55,18 @@ function SignUpContent() {
           firstName: session.user?.firstname || "",
           email: session.user?.email || "",
         }));
+
+        // Get usertype from URL parameter if it exists
+        const usertypeParam = searchParams.get(
+          "usertype"
+        ) as AuthSelectionType | null;
+        if (
+          usertypeParam &&
+          (usertypeParam === "business" || usertypeParam === "influencer")
+        ) {
+          setUserType(usertypeParam);
+        }
+
         setStep("form");
       }
       console.log("Session info for social registration:", session);
@@ -83,47 +98,45 @@ function SignUpContent() {
 
   const handleCompanySubmit = (data: CompanyData) => {
     setCompanyData(data);
-    setMessage("");
     setStep("categories");
   };
 
   const handleFinalize = async () => {
-    setMessage("");
     setLoading(true);
     try {
       const categoryValue =
         selectedCategory === "Other" ? customCategory : selectedCategory;
       if (!categoryValue) {
-        setMessage("Please select a category.");
+        toast.error("Please select a category.");
         setLoading(false);
         return;
       }
       if (userType === "business") {
         if (!teamSize) {
-          setMessage("Please select your team size.");
+          toast.error("Please select your team size.");
           setLoading(false);
           return;
         }
         if (!location.trim()) {
-          setMessage("Please provide your business location.");
+          toast.error("Please provide your business location.");
           setLoading(false);
           return;
         }
       }
       if (!referralSource.trim()) {
-        setMessage("Please tell us how you heard about us.");
+        toast.error("Please tell us how you heard about us.");
         setLoading(false);
         return;
       }
       if (referralSource === "Other" && !otherReferralText.trim()) {
-        setMessage("Please specify how you heard about us.");
+        toast.error("Please specify how you heard about us.");
         setLoading(false);
         return;
       }
       const session = await getSession();
       const userId = session?.user?.id;
       if (!userId) {
-        setMessage("User ID not found in session. Please log in again.");
+        toast.error("User ID not found in session. Please log in again.");
         setLoading(false);
         return;
       }
@@ -141,7 +154,7 @@ function SignUpContent() {
         });
         const result = await res.json();
         if (!res.ok) {
-          setMessage(result.error || "Failed to save business information.");
+          toast.error(result.error || "Failed to save business information.");
           setLoading(false);
           return;
         }
@@ -163,7 +176,7 @@ function SignUpContent() {
       }
       setStep("completed");
     } catch (err) {
-      setMessage("Failed to save business information.");
+      toast.error("Failed to save business information.");
     }
     setLoading(false);
   };
@@ -171,19 +184,18 @@ function SignUpContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
     if (formData.password !== formData.repeatPassword) {
-      setMessage("Passwords do not match.");
+      toast.error("Passwords do not match.");
       setLoading(false);
       return;
     }
     if (!formData.phone) {
-      setMessage("Phone number is required.");
+      toast.error("Phone number is required.");
       setLoading(false);
       return;
     }
     if (!acceptedTerms) {
-      setMessage("Please accept the terms and conditions.");
+      toast.error("Please accept the terms and conditions.");
       setLoading(false);
       return;
     }
@@ -221,7 +233,7 @@ function SignUpContent() {
           setStep("categories");
         }
       } else {
-        setMessage(data.error || "Profile update failed.");
+        toast.error(data.error || "Profile update failed.");
       }
       setLoading(false);
       return;
@@ -242,7 +254,7 @@ function SignUpContent() {
     });
     const data = await res.json();
     if (res.ok && data.user) {
-      setMessage("Registration successful! You can now log in.");
+      toast.success("Registration successful! You can now log in.");
       try {
         const signInResult = await signIn("credentials", {
           email: formData.email,
@@ -275,7 +287,7 @@ function SignUpContent() {
       });
       setAcceptedTerms(false);
     } else {
-      setMessage(data.error || "Registration failed.");
+      toast.error(data.error || "Registration failed.");
     }
     setLoading(false);
   };
@@ -325,22 +337,21 @@ function SignUpContent() {
             </div>
 
             <div className=" flex flex-col gap-4">
-              <Button
+              {/* <Button
                 type="button"
                 className="w-full bg-white text-black border"
                 onClick={() => setStep("selection")}
               >
                 Back
-              </Button>
+              </Button> */}
               <Button
                 type="button"
                 className="w-full"
                 onClick={async () => {
                   if (!formData.email || !userType) {
-                    setMessage("Please enter email and select account type.");
+                    toast.error("Please enter email and select account type.");
                     return;
                   }
-                  setMessage("");
                   setEmailCheckLoading(true);
                   try {
                     const res = await fetch("/api/auth/main/checkEmail", {
@@ -353,16 +364,16 @@ function SignUpContent() {
                     });
                     const data = await res.json();
                     if (res.ok && data.exists) {
-                      setMessage(
+                      toast.error(
                         "An account with this email already exists. Please log in."
                       );
                     } else if (res.ok) {
                       setStep("form");
                     } else {
-                      setMessage(data.error || "Unable to verify email.");
+                      toast.error(data.error || "Unable to verify email.");
                     }
                   } catch (err) {
-                    setMessage("Unable to verify email.");
+                    toast.error("Unable to verify email.");
                   }
                   setEmailCheckLoading(false);
                 }}
@@ -370,9 +381,46 @@ function SignUpContent() {
                 {emailCheckLoading ? "Checking..." : "Continue"}
               </Button>
             </div>
-            {message && (
-              <div className="text-sm text-red-600 text-center">{message}</div>
-            )}
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span className="text-sm text-[#737373]">OR CONTINUE WITH</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("google", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
+                }
+              >
+                <RectangleGoggles className="w-5 h-5" /> Sign in with Google
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("facebook", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
+                }
+              >
+                <Facebook className="w-5 h-5" /> Sign in with Facebook
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() =>
+                  signIn("instagram", {
+                    callbackUrl: `/api/auth/main/socialredirectregister?usertype=${userType}`,
+                  })
+                }
+              >
+                <Instagram className="w-5 h-5" /> Sign in with Instagram
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -385,7 +433,6 @@ function SignUpContent() {
         formData={formData}
         passwordError={passwordError}
         loading={loading}
-        message={message}
         onInputChange={handleInputChange}
         onPhoneChange={(value) =>
           setFormData((prev) => ({
@@ -442,7 +489,6 @@ function SignUpContent() {
                   type="button"
                   onClick={() => {
                     setSelectedCategory(option);
-                    setMessage("");
                     if (option !== "Other") {
                       setCustomCategory("");
                     }
@@ -476,14 +522,13 @@ function SignUpContent() {
             type="button"
             onClick={() => {
               if (!selectedCategory) {
-                setMessage("Please select a category.");
+                toast.error("Please select a category.");
                 return;
               }
               if (selectedCategory === "Other" && !customCategory.trim()) {
-                setMessage("Please specify your category.");
+                toast.error("Please specify your category.");
                 return;
               }
-              setMessage("");
               if (userType === "business") {
                 setStep("teamMode");
               } else {
@@ -494,11 +539,6 @@ function SignUpContent() {
           >
             Continue
           </Button>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
         </main>
       </div>
     );
@@ -515,7 +555,10 @@ function SignUpContent() {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 w-full">
-            {[{ key: "independent", label: "I'm an independent" }, { key: "team", label: "I have a team" }].map((opt) => {
+            {[
+              { key: "independent", label: "I'm an independent" },
+              { key: "team", label: "I have a team" },
+            ].map((opt) => {
               const isActive = teamMode === opt.key;
               return (
                 <button
@@ -523,7 +566,6 @@ function SignUpContent() {
                   type="button"
                   onClick={() => {
                     setTeamMode(opt.key as "independent" | "team");
-                    setMessage("");
                   }}
                   className={`w-full text-left px-4 py-3 rounded border ${
                     isActive ? "border-black bg-gray-50" : "border-gray-300"
@@ -539,7 +581,7 @@ function SignUpContent() {
             type="button"
             onClick={() => {
               if (!teamMode) {
-                setMessage("Please select an account type.");
+                toast.error("Please select an account type.");
                 return;
               }
               if (teamMode === "independent") {
@@ -549,17 +591,11 @@ function SignUpContent() {
                 setTeamSize("");
                 setStep("teamSize");
               }
-              setMessage("");
             }}
             className="w-full"
           >
             Continue
           </Button>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
         </main>
       </div>
     );
@@ -584,7 +620,6 @@ function SignUpContent() {
                   type="button"
                   onClick={() => {
                     setTeamSize(option);
-                    setMessage("");
                   }}
                   className={`w-full text-left px-4 py-3 rounded border ${
                     isActive ? "border-black bg-gray-50" : "border-gray-300"
@@ -597,21 +632,20 @@ function SignUpContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() => setStep("teamMode")}
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={() => {
                 if (!teamSize) {
-                  setMessage("Please select your team size.");
+                  toast.error("Please select your team size.");
                   return;
                 }
-                setMessage("");
                 setStep("location");
               }}
               className="w-full"
@@ -619,11 +653,6 @@ function SignUpContent() {
               Continue
             </Button>
           </div>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
           {teamSize && (
             <div className="text-center text-xs text-gray-600 mt-2">
               Selected team size: {teamSize}
@@ -657,21 +686,20 @@ function SignUpContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() => setStep("teamMode")}
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={() => {
                 if (!location.trim()) {
-                  setMessage("Please provide your business location.");
+                  toast.error("Please provide your business location.");
                   return;
                 }
-                setMessage("");
                 setStep("referral");
               }}
               className="w-full"
@@ -679,11 +707,6 @@ function SignUpContent() {
               Continue
             </Button>
           </div>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
         </main>
       </div>
     );
@@ -723,7 +746,6 @@ function SignUpContent() {
                         if (option !== "Other") {
                           setOtherReferralText("");
                         }
-                        setMessage("");
                       }
                     }}
                     className="data-[state=checked]:bg-black data-[state=checked]:border-black"
@@ -755,7 +777,7 @@ function SignUpContent() {
           )}
 
           <div className="flex flex-col gap-4 w-full">
-            <Button
+            {/* <Button
               type="button"
               onClick={() =>
                 setStep(userType === "business" ? "location" : "categories")
@@ -763,7 +785,7 @@ function SignUpContent() {
               className="w-full bg-white text-black border"
             >
               Back
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={handleFinalize}
@@ -773,11 +795,6 @@ function SignUpContent() {
               {loading ? "Saving..." : "Create Account"}
             </Button>
           </div>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
         </main>
       </div>
     );

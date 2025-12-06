@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Save,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function BusinessProfile({
   userId,
@@ -28,8 +29,6 @@ export default function BusinessProfile({
     job_position: "",
   });
   const [businessSaveLoading, setBusinessSaveLoading] = useState(false);
-  const [businessSaveError, setBusinessSaveError] = useState("");
-  const [businessSaveSuccess, setBusinessSaveSuccess] = useState("");
 
   useEffect(() => {
     if (usertype === "business") {
@@ -41,10 +40,13 @@ export default function BusinessProfile({
             setBusinessInfo(data.business);
           } else {
             setBusinessError(data.error || "No business info found");
+            toast.error(data.error || "No business info found");
           }
         })
         .catch(() => {
-          setBusinessError("Failed to fetch business info");
+          const errorMessage = "Failed to fetch business info";
+          setBusinessError(errorMessage);
+          toast.error(errorMessage);
         })
         .finally(() => setBusinessLoading(false));
     }
@@ -131,21 +133,10 @@ export default function BusinessProfile({
               />
             </div>
           </div>
-          {businessSaveError && (
-            <div className="text-red-500 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {businessSaveError}
-            </div>
-          )}
-          {businessSaveSuccess && (
-            <div className="text-green-600 text-sm">{businessSaveSuccess}</div>
-          )}
           <div className="flex gap-3 pt-2">
             <Button
               onClick={async () => {
                 setBusinessSaveLoading(true);
-                setBusinessSaveError("");
-                setBusinessSaveSuccess("");
                 try {
                   const res = await fetch(
                     "/api/business/saveOrUpdateBusiness",
@@ -162,16 +153,14 @@ export default function BusinessProfile({
                   );
                   const data = await res.json();
                   if (res.ok) {
-                    setBusinessSaveSuccess("Business info updated!");
+                    toast.success("Business info updated!");
                     setBusinessEdit(false);
                     setBusinessInfo(data.business);
                   } else {
-                    setBusinessSaveError(
-                      data.error || "Failed to update business info"
-                    );
+                    toast.error(data.error || "Failed to update business info");
                   }
                 } catch (err) {
-                  setBusinessSaveError("Failed to update business info");
+                  toast.error("Failed to update business info");
                 }
                 setBusinessSaveLoading(false);
               }}
@@ -198,8 +187,6 @@ export default function BusinessProfile({
                   name: businessInfo?.name || "",
                   job_position: businessInfo?.job_position || "",
                 });
-                setBusinessSaveError("");
-                setBusinessSaveSuccess("");
               }}
               variant="outline"
               disabled={businessSaveLoading}

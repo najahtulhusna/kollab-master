@@ -8,28 +8,67 @@ import path from "path";
 
 // ─── Actions ────────────────────────────────
 
-// Social redirect handler
-async function socialRedirect(req: NextRequest) {
+/**
+ * Handle social login redirect based on user registration status
+ * @param req - Next.js request object
+ * @param redirectMode - Determines where to redirect unregistered users:
+ *   - 'login': Redirects to login page with error message (for login flow)
+ *   - 'register': Redirects to register page with social=true param (for registration flow)
+ */
+async function handleSocialRedirect(
+  req: NextRequest,
+  redirectMode: "login" | "register"
+) {
   // Get the session
   const session = await getServerSession(authOptions);
+
+  // If not logged in, redirect to login
   if (!session || !session.user || !(session.user as any).email) {
-    // Not logged in, redirect to login
     return NextResponse.redirect(new URL("/login", req.url));
   }
+
   const email = (session.user as any).email;
-  // Check user in DB
+
+  // Check if user exists in database
   const supabase = supabaseServer();
   const { data: user, error } = await supabase
     .from("users")
-    .select("username")
+    .select("username, usertype")
     .eq("email", email)
     .single();
-  if (!error && user && user.username) {
-    // Username exists, go to profile page
+
+  // If user exists and has usertype, profile is complete - go to dashboard
+  if (!error && user && user.usertype) {
     return NextResponse.redirect(new URL("/business/profile", req.url));
   }
-  // Otherwise, go to signup page with social param
-  return NextResponse.redirect(new URL("/register?social=true", req.url));
+
+  // User not registered - redirect based on mode
+  if (redirectMode === "login") {
+    // From login page: show error that social account not registered
+    return NextResponse.redirect(
+      new URL("/login?error=social_not_registered", req.url)
+    );
+  } else {
+    // From register page: continue to registration with social data
+    // Preserve usertype from original request if it exists
+    const { searchParams } = new URL(req.url);
+    const usertype = searchParams.get("usertype");
+    const registerUrl = new URL("/register", req.url);
+    registerUrl.searchParams.set("social", "true");
+    if (usertype) {
+      registerUrl.searchParams.set("usertype", usertype);
+    }
+    return NextResponse.redirect(registerUrl);
+  }
+}
+
+// Wrapper functions for backward compatibility
+async function socialRedirect(req: NextRequest) {
+  return handleSocialRedirect(req, "login");
+}
+
+async function socialRedirect2(req: NextRequest) {
+  return handleSocialRedirect(req, "register");
 }
 async function getTest() {
   return NextResponse.json({ message: "Test GET route is working!" });
@@ -423,6 +462,54 @@ async function checkEmail(body: any) {
     );
   }
 }
+
+async function getUserProfile(body: any) {
+  try {
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Missing required field: userId" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = supabaseServer();
+
+    // Get user profile data
+    const { data: user, error: fetchError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError || !user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstname: user.firstname,
+        lastname: user.lastname,
+        avatar_url: user.avatar_url,
+        phone: user.phone,
+        usertype: user.usertype,
+        categories: user.categories,
+        referral_source: user.referral_source,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Unexpected error" },
+      { status: 500 }
+    );
+  }
+}
 // ─── Router Dispatcher ──────────────────────
 export async function GET(req: NextRequest, context: any) {
   const action = context.params?.action;
@@ -430,6 +517,7 @@ export async function GET(req: NextRequest, context: any) {
     getTest: getTest,
     testApi: testApi,
     socialredirect: () => socialRedirect(req),
+    socialredirectregister: () => socialRedirect2(req),
     // "users": getUsers,
   };
   const fn = actions[action];
@@ -452,6 +540,7 @@ export async function POST(req: NextRequest, context: any) {
     verifyPassword,
     forgotPassword,
     checkEmail,
+    getUserProfile,
     // updateAvatar handled above
   };
   const fn = actions[action];
