@@ -22,6 +22,7 @@ import {
   Camera,
 } from "lucide-react";
 import BusinessProfile from "@/components/BusinessProfile";
+import { toast } from "sonner";
 
 export default function BusinessProfilePage() {
   const { data: session, status, update } = useSession();
@@ -112,10 +113,11 @@ export default function BusinessProfilePage() {
           image: data.avatar_url,
         });
       } else {
-        alert(data.error || "Failed to update avatar");
+        toast.error(data.error || "Failed to update avatar");
       }
     } catch (error) {
       console.error("Failed to upload avatar:", error);
+      toast.error("Failed to upload avatar");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -179,7 +181,7 @@ export default function BusinessProfilePage() {
       const updateResult = await updateResponse.json();
 
       if (!updateResponse.ok) {
-        alert(updateResult.error || "Failed to update profile");
+        toast.error(updateResult.error || "Failed to update profile");
         setIsSaving(false);
         return;
       }
@@ -195,10 +197,11 @@ export default function BusinessProfilePage() {
 
       setIsEditing(false);
       setCurrentPassword("");
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Failed to update profile:", error);
       setPasswordError("An unexpected error occurred");
+      toast.error("An unexpected error occurred while updating profile");
     } finally {
       setIsVerifying(false);
       setIsSaving(false);

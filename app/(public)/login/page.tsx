@@ -4,6 +4,7 @@ import { useState } from "react";
 import AuthSelection, { AuthSelectionType } from "@/components/authSelection";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   User,
   Lock,
@@ -16,7 +17,6 @@ import {
 export default function LoginPage() {
   const [email, setemail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState<AuthSelectionType | null>(null);
   const [step, setStep] = useState("form"); // 'selection', 'form'
@@ -26,7 +26,6 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
     // if (!userType) {
     //   setMessage("Please select your user type.");
     //   setLoading(false);
@@ -43,25 +42,25 @@ export default function LoginPage() {
 
     if (result?.error) {
       console.log("Login error:", result.error);
-      setMessage(
+      toast.error(
         result.error === "CredentialsSignin"
-          ? "Invalid email, or password. Please try again."
+          ? "Invalid email or password. Please try again."
           : result.error
       );
       setLoading(false);
       return;
     }
     if (result?.ok && result?.url) {
+      toast.success("Logged in successfully");
       router.push(result.url);
     } else {
-      setMessage("An unexpected error occurred.");
+      toast.error("An unexpected error occurred.");
     }
     setLoading(false);
   }
 
   const handleForgotPassword = async () => {
     setForgotLoading(true);
-    setMessage("");
     try {
       const res = await fetch("/api/auth/main/forgotPassword", {
         method: "POST",
@@ -70,14 +69,14 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage(
-          "Password reset to 123456. Please check your email or try logging in with the new password."
+        toast.success(
+          "Password reset to 123456. Try logging in with the new password."
         );
       } else {
-        setMessage(data.error || "Failed to reset password.");
+        toast.error(data.error || "Failed to reset password.");
       }
     } catch (err) {
-      setMessage("Failed to reset password.");
+      toast.error("Failed to reset password.");
     } finally {
       setForgotLoading(false);
     }
@@ -197,11 +196,6 @@ export default function LoginPage() {
               <Instagram className="w-5 h-5" /> Sign in with Instagram
             </button>
           </div>
-          {message && (
-            <div className="text-center text-sm mt-4 text-red-600">
-              {message}
-            </div>
-          )}
           <div className="text-center mt-8 text-black font-medium">
             Don’t have an account?{" "}
             <a href="/register" className="underline">

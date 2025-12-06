@@ -21,7 +21,6 @@ type SignupFormProps = {
   formData: SignupFormData;
   passwordError: string;
   loading: boolean;
-  message: string;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPhoneChange: (value: string) => void;
   acceptedTerms: boolean;
@@ -34,7 +33,6 @@ export function SignupForm({
   formData,
   passwordError,
   loading,
-  message,
   onInputChange,
   onPhoneChange,
   acceptedTerms,
@@ -206,9 +204,6 @@ export function SignupForm({
             </Button>
           </div>
         </form>
-        {message && (
-          <div className="text-center text-sm mt-4 text-red-600">{message}</div>
-        )}
       </main>
     </div>
   );
