@@ -27,6 +27,7 @@ function LoginContent() {
   const [forgotEmail, setForgotEmail] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:10000";
 
   // Check for social login error
   useEffect(() => {
@@ -245,7 +246,7 @@ function LoginContent() {
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
                   signIn("google", {
-                    callbackUrl: "/api/auth/main/socialredirect",
+                    callbackUrl: `${baseUrl}/api/auth/main/socialredirect`,
                   })
                 }
               >
@@ -256,7 +257,7 @@ function LoginContent() {
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
                   signIn("facebook", {
-                    callbackUrl: "/api/auth/main/socialredirect",
+                    callbackUrl: `${baseUrl}/api/auth/main/socialredirect`,
                   })
                 }
               >
@@ -267,7 +268,7 @@ function LoginContent() {
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50"
                 onClick={() =>
                   signIn("instagram", {
-                    callbackUrl: "/api/auth/main/socialredirect",
+                    callbackUrl: `${baseUrl}/api/auth/main/socialredirect`,
                   })
                 }
               >
