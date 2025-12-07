@@ -10,6 +10,9 @@ CREATE TABLE users (
   firstname TEXT,
   lastname TEXT,
   usertype TEXT, -- 'business' or 'influencer'
+  phone TEXT,
+  categories TEXT,
+  referral_source TEXT
 );
 
 -- Note: Using TIMESTAMPTZ stores timezone-aware timestamps, which is best for analytics, reporting, and global applications.
