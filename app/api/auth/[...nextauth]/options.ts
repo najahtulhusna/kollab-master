@@ -117,14 +117,27 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      console.log('[Auth] Redirect - url:', url, 'baseUrl:', baseUrl);
-      
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      
-      if (new URL(url).origin === baseUrl) return url;
-      
-      return `${baseUrl}/business/profile`;
+      const envBaseUrl = process.env.NEXTAUTH_URL;
+
+      console.log('[Auth] Redirect');
+      console.log('url:', url);
+      console.log('baseUrl:', baseUrl);
+      console.log('envBaseUrl:', envBaseUrl);
+
+      // ✅ If relative URL -> force use NEXTAUTH_URL (Render)
+      if (url.startsWith("/")) {
+        return `${envBaseUrl}${url}`;
+      }
+
+      // ✅ If absolute URL and same origin -> allow
+      if (new URL(url).origin === envBaseUrl) {
+        return url;
+      }
+
+      // ✅ Fallback always go to Render production
+      return `${envBaseUrl}/business/profile`;
     },
+
     async jwt({ token, trigger, user, session }) {
       if (session) {
         token.id = session.id;
@@ -136,6 +149,7 @@ export const authOptions: NextAuthOptions = {
         token.lastname = (session as any).lastname;
         token.usertype = (session as any).usertype;
       }
+
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -146,8 +160,10 @@ export const authOptions: NextAuthOptions = {
         token.lastname = (user as any).lastname;
         token.usertype = (user as any).usertype;
       }
+
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id as string;
@@ -157,6 +173,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).lastname = token.lastname as string;
         (session.user as any).usertype = token.usertype as string;
       }
+
       return session;
     },
   },
