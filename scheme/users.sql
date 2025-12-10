@@ -11,7 +11,6 @@ CREATE TABLE users (
   lastname TEXT,
   usertype TEXT, -- 'business' or 'influencer'
   phone TEXT,
-  categories TEXT,
   referral_source TEXT
 );
 

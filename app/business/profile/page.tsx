@@ -401,7 +401,9 @@ export default function BusinessProfilePage() {
                         Categories
                       </p>
                       <p className="text-sm font-medium mt-0.5">
-                        {user?.categories || "Not set"}
+                        {Array.isArray(user?.categories)
+                          ? user.categories.join(", ")
+                          : user?.categories || "Not set"}
                       </p>
                     </div>
                   </div>

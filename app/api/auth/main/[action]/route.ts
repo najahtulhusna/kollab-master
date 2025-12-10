@@ -5,6 +5,155 @@ import { supabaseServer } from "@/lib/supabase";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
+import bcrypt from "bcryptjs";
+
+type SupabaseClient = ReturnType<typeof supabaseServer>;
+
+type CategoryRow = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+const slugifyCategory = (value: string) => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (normalized) return normalized;
+  return `category-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+};
+
+const normalizeCategoryNames = (categories: unknown): string[] => {
+  if (typeof categories === "string") {
+    categories = [categories];
+  }
+
+  if (!Array.isArray(categories)) return [];
+
+  const seen = new Set<string>();
+  const names: string[] = [];
+
+  categories.forEach((raw) => {
+    if (typeof raw !== "string") return;
+    const name = raw.trim();
+    if (!name) return;
+
+    const slug = slugifyCategory(name);
+    if (seen.has(slug)) return;
+    seen.add(slug);
+    names.push(name);
+  });
+
+  return names;
+};
+
+async function upsertCategories(
+  supabase: SupabaseClient,
+  categoryNames: string[]
+): Promise<CategoryRow[]> {
+  if (!categoryNames.length) return [];
+
+  const mapped = categoryNames.map((name) => ({
+    name,
+    slug: slugifyCategory(name),
+  }));
+
+  const slugs = mapped.map((item) => item.slug);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .in("slug", slugs);
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  const existingBySlug = new Map<string, CategoryRow>(
+    (existing || []).map((row) => [row.slug, row])
+  );
+
+  const toInsert = mapped.filter((item) => !existingBySlug.has(item.slug));
+  let inserted: CategoryRow[] = [];
+
+  if (toInsert.length) {
+    const { data: insertedRows, error: insertError } = await supabase
+      .from("categories")
+      .upsert(toInsert, { onConflict: "slug" })
+      .select("id, name, slug");
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    inserted = insertedRows || [];
+  }
+
+  const merged = new Map<string, CategoryRow>([
+    ...existingBySlug.entries(),
+    ...inserted.map((item) => [item.slug, item]),
+  ]);
+
+  return mapped
+    .map((item) => merged.get(item.slug))
+    .filter((item): item is CategoryRow => Boolean(item));
+}
+
+async function syncUserCategories(
+  supabase: SupabaseClient,
+  userId: string,
+  categories: string[]
+): Promise<CategoryRow[]> {
+  const normalizedNames = normalizeCategoryNames(categories);
+
+  if (!normalizedNames.length) {
+    await supabase.from("user_categories").delete().eq("user_id", userId);
+    return [];
+  }
+
+  const categoryRows = await upsertCategories(supabase, normalizedNames);
+
+  await supabase.from("user_categories").delete().eq("user_id", userId);
+
+  const { error: linkError } = await supabase
+    .from("user_categories")
+    .upsert(
+      categoryRows.map((category) => ({
+        user_id: userId,
+        category_id: category.id,
+      })),
+      { onConflict: "user_id,category_id" }
+    );
+
+  if (linkError) {
+    throw new Error(linkError.message);
+  }
+
+  return categoryRows;
+}
+
+async function fetchUserCategories(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CategoryRow[]> {
+  const { data, error } = await supabase
+    .from("user_categories")
+    .select("category:categories(id, name, slug)")
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (
+    data
+      ?.map((row: any) => row.category)
+      .filter(Boolean) as CategoryRow[]
+  );
+}
 
 // ─── Actions ────────────────────────────────
 
@@ -78,8 +227,6 @@ async function testApi() {
   return NextResponse.json("testApi");
 }
 
-import bcrypt from "bcryptjs";
-
 async function verifyPassword(body: any) {
   try {
     const { userId, password } = body;
@@ -139,6 +286,9 @@ async function updateProfile(body: any) {
       phone,
     } = body;
 
+    const normalizedCategories = normalizeCategoryNames(categories);
+    const shouldUpdateCategories = Array.isArray(categories) || typeof categories === "string";
+
     if (!userId) {
       return NextResponse.json(
         { error: "Missing required field: userId" },
@@ -187,9 +337,9 @@ async function updateProfile(body: any) {
     if (firstname) updateData.firstname = firstname;
     if (lastname) updateData.lastname = lastname;
     if (usertype) updateData.usertype = usertype;
-    if (referral_source) updateData.referral_source = referral_source;
-    if (categories) updateData.categories = categories;
-    if (phone) updateData.phone = phone;
+    if (referral_source !== undefined)
+      updateData.referral_source = referral_source || null;
+    if (phone !== undefined) updateData.phone = phone || null;
 
     // Update user profile
     const { data: updatedUser, error: updateError } = await supabase
@@ -224,6 +374,29 @@ async function updateProfile(body: any) {
       }
     }
 
+    let userCategories: CategoryRow[] = [];
+    if (shouldUpdateCategories) {
+      try {
+        userCategories = await syncUserCategories(
+          supabase,
+          userId,
+          normalizedCategories
+        );
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: "Failed to update categories", details: err.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      try {
+        userCategories = await fetchUserCategories(supabase, userId);
+      } catch (err: any) {
+        // Do not fail the request if categories are not critical
+        userCategories = [];
+      }
+    }
+
     return NextResponse.json({
       message: "Profile updated successfully",
       user: {
@@ -234,6 +407,7 @@ async function updateProfile(body: any) {
         firstname: updatedUser.firstname,
         lastname: updatedUser.lastname,
         usertype: updatedUser.usertype,
+        categories: userCategories.map((item) => item.name),
       },
     });
   } catch (err: any) {
@@ -259,6 +433,7 @@ async function register(body: any) {
       categories,
       phone,
     } = body;
+    const normalizedCategories = normalizeCategoryNames(categories);
     const missingFields = [];
     if (!email) missingFields.push("email");
     if (!password) missingFields.push("password");
@@ -300,7 +475,6 @@ async function register(body: any) {
           lastname,
           usertype,
           referral_source: referral_source || null,
-          categories: categories || null,
           phone: phone || null,
         },
       ])
@@ -312,6 +486,23 @@ async function register(body: any) {
         { status: 500 }
       );
     }
+
+    let userCategories: CategoryRow[] = [];
+    if (normalizedCategories.length) {
+      try {
+        userCategories = await syncUserCategories(
+          supabase,
+          user.id,
+          normalizedCategories
+        );
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: "Failed to attach categories", details: err.message },
+          { status: 500 }
+        );
+      }
+    }
+
     // Create account record for local provider
     const { error: accountError } = await supabase.from("accounts").insert([
       {
@@ -337,6 +528,7 @@ async function register(body: any) {
         lastname: user.lastname,
         usertype: user.usertype,
         name: user.name,
+        categories: userCategories.map((item) => item.name),
       },
     });
   } catch (err: any) {
@@ -487,6 +679,13 @@ async function getUserProfile(body: any) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    let categories: CategoryRow[] = [];
+    try {
+      categories = await fetchUserCategories(supabase, userId);
+    } catch (err) {
+      categories = [];
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -497,7 +696,7 @@ async function getUserProfile(body: any) {
         avatar_url: user.avatar_url,
         phone: user.phone,
         usertype: user.usertype,
-        categories: user.categories,
+        categories: categories.map((item) => item.name),
         referral_source: user.referral_source,
         created_at: user.created_at,
         updated_at: user.updated_at,

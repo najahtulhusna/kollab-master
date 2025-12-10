@@ -15,6 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Facebook, Instagram, RectangleGoggles } from "lucide-react";
 
+const DEFAULT_CATEGORY_OPTIONS = [
+  "Fashion",
+  "Technology",
+  "Food & Beverage",
+  "Health & Wellness",
+  "Travel",
+];
+const MAX_CATEGORIES = 3;
+
 function SignUpContent() {
   const searchParams = useSearchParams();
   const { update } = useSession();
@@ -34,7 +43,11 @@ function SignUpContent() {
     companyName: "",
     jobPosition: "",
   });
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(
+    DEFAULT_CATEGORY_OPTIONS
+  );
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [customCategory, setCustomCategory] = useState("");
   const [teamSize, setTeamSize] = useState("");
   const [teamMode, setTeamMode] = useState<"independent" | "team" | "">("");
@@ -73,6 +86,33 @@ function SignUpContent() {
     });
   }, [searchParams]);
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const res = await fetch("/api/categories");
+        if (!res.ok) throw new Error("Unable to fetch categories");
+        const data = await res.json();
+        const names =
+          data?.categories
+            ?.map((item: any) =>
+              typeof item?.name === "string" ? item.name.trim() : ""
+            )
+            .filter((name: string) => !!name) || [];
+        if (names.length) {
+          setCategoryOptions(names);
+        }
+      } catch (err) {
+        toast.error("Unable to load categories. Showing defaults instead.");
+        setCategoryOptions(DEFAULT_CATEGORY_OPTIONS);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedForm = { ...formData, [name]: value };
@@ -101,13 +141,49 @@ function SignUpContent() {
     setStep("categories");
   };
 
+  const isCategorySelected = (name: string) =>
+    selectedCategories.some(
+      (item) => item.toLowerCase() === name.trim().toLowerCase()
+    );
+
+  const toggleCategorySelection = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setSelectedCategories((prev) => {
+      const exists = prev.some(
+        (item) => item.toLowerCase() === trimmed.toLowerCase()
+      );
+
+      if (exists) {
+        return prev.filter(
+          (item) => item.toLowerCase() !== trimmed.toLowerCase()
+        );
+      }
+
+      if (prev.length >= MAX_CATEGORIES) {
+        toast.error(`You can select up to ${MAX_CATEGORIES} categories.`);
+        return prev;
+      }
+
+      return [...prev, trimmed];
+    });
+  };
+
+  const handleAddCustomCategory = () => {
+    if (!customCategory.trim()) {
+      toast.error("Please type a category to add.");
+      return;
+    }
+    toggleCategorySelection(customCategory);
+    setCustomCategory("");
+  };
+
   const handleFinalize = async () => {
     setLoading(true);
     try {
-      const categoryValue =
-        selectedCategory === "Other" ? customCategory : selectedCategory;
-      if (!categoryValue) {
-        toast.error("Please select a category.");
+      if (!selectedCategories.length) {
+        toast.error("Please select at least one category.");
         setLoading(false);
         return;
       }
@@ -167,7 +243,7 @@ function SignUpContent() {
         body: JSON.stringify({
           userId,
           referral_source: finalReferralSource,
-          categories: categoryValue,
+          categories: selectedCategories,
         }),
       });
       if (!referralRes.ok) {
@@ -459,15 +535,6 @@ function SignUpContent() {
   }
 
   if (step === "categories") {
-    const categoryOptions = [
-      "Fashion",
-      "Technology",
-      "Food & Beverage",
-      "Health & Wellness",
-      "Travel",
-      "Other",
-    ];
-
     return (
       <div className="h-full bg-white">
         <main className="flex flex-col items-center justify-center gap-7">
@@ -480,53 +547,81 @@ function SignUpContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 w-full">
-            {categoryOptions.map((option) => {
-              const isActive = option === selectedCategory;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(option);
-                    if (option !== "Other") {
-                      setCustomCategory("");
-                    }
-                  }}
-                  className={`w-full text-left px-4 py-3 rounded border ${
-                    isActive ? "border-black bg-gray-50" : "border-gray-300"
-                  } hover:border-black transition-colors`}
-                >
-                  {option}
-                </button>
-              );
-            })}
+          <div className="flex items-center justify-between w-full text-xs text-gray-600">
+            <span>Select up to {MAX_CATEGORIES} categories.</span>
+            <span>
+              {selectedCategories.length}/{MAX_CATEGORIES} selected
+            </span>
           </div>
 
-          {selectedCategory === "Other" && (
-            <div className="w-full">
-              <label className="block text-sm font-medium mb-1.5">
-                Other service type
-              </label>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {categoriesLoading ? (
+              <div className="col-span-2 text-center text-sm text-gray-500">
+                Loading categories...
+              </div>
+            ) : (
+              categoryOptions.map((option) => {
+                const isActive = isCategorySelected(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleCategorySelection(option)}
+                    className={`w-full text-left px-4 py-3 rounded border ${
+                      isActive ? "border-black bg-gray-50" : "border-gray-300"
+                    } hover:border-black transition-colors`}
+                  >
+                    {option}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="w-full space-y-2">
+            <label className="block text-sm font-medium">
+              Add a custom category
+            </label>
+            <div className="flex gap-2">
               <Input
                 type="text"
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
-                className=""
                 placeholder="Enter service type"
+                className=""
               />
+              <Button type="button" onClick={handleAddCustomCategory}>
+                Add
+              </Button>
+            </div>
+          </div>
+
+          {selectedCategories.length > 0 && (
+            <div className="w-full flex flex-wrap gap-2 text-sm">
+              {selectedCategories.map((item) => (
+                <span
+                  key={item}
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border"
+                >
+                  {item}
+                  <button
+                    type="button"
+                    onClick={() => toggleCategorySelection(item)}
+                    className="text-gray-500 hover:text-black"
+                    aria-label={`Remove ${item}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
             </div>
           )}
 
           <Button
             type="button"
             onClick={() => {
-              if (!selectedCategory) {
-                toast.error("Please select a category.");
-                return;
-              }
-              if (selectedCategory === "Other" && !customCategory.trim()) {
-                toast.error("Please specify your category.");
+              if (!selectedCategories.length) {
+                toast.error("Please select at least one category.");
                 return;
               }
               if (userType === "business") {
